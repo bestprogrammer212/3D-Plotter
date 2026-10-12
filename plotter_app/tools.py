@@ -78,6 +78,71 @@ def polyline(points):
     return [tuple(p) for p in points]
 
 
+def simplify(points, tolerance=0.002):
+    """Douglas-Peucker: reduziert Punkte, ohne die Form merkbar zu ändern."""
+    if len(points) < 3:
+        return list(points)
+
+    def perp_dist(p, a, b):
+        ax, ay = a
+        bx, by = b
+        px, py = p
+        dx, dy = bx - ax, by - ay
+        L = math.hypot(dx, dy)
+        if L < 1e-12:
+            return math.hypot(px - ax, py - ay)
+        return abs(dy * px - dx * py + bx * ay - by * ax) / L
+
+    start, end = points[0], points[-1]
+    max_d, max_i = 0.0, 0
+    for i in range(1, len(points) - 1):
+        d = perp_dist(points[i], start, end)
+        if d > max_d:
+            max_d, max_i = d, i
+    if max_d > tolerance:
+        left = simplify(points[:max_i + 1], tolerance)
+        right = simplify(points[max_i:], tolerance)
+        return left[:-1] + right
+    return [start, end]
+
+
+def optimize_paths(paths):
+    """Sortiert Pfade nach nächstem Nachbarn: weniger Stift-Hübe, schnellere Plots."""
+    if not paths:
+        return []
+    remaining = [p for p in paths if len(p) >= 2]
+    ordered = [remaining.pop(0)]
+    while remaining:
+        last = ordered[-1][-1]
+        best_i = min(range(len(remaining)),
+                     key=lambda i: (remaining[i][0][0] - last[0]) ** 2 + (remaining[i][0][1] - last[1]) ** 2)
+        ordered.append(remaining.pop(best_i))
+    return ordered
+
+
+def test_plot(size=0.3):
+    """Höhen-Test: kleine Linien, Quadrate und einen Kreis – sieht man sofort,
+    ob der Stift richtig aufsetzt bzw. kratzt."""
+    cx, cy = 0.5, 0.5
+    s = size / 2
+    return [
+        [(cx - s, cy - s), (cx - s, cy + s)],
+        [(cx - s, cy + s), (cx + s, cy + s)],
+        [(cx + s, cy + s), (cx + s, cy - s)],
+        [(cx + s, cy - s), (cx - s, cy - s)],
+        circle(cx, cy, s * 0.7, steps=48),
+    ]
+
+
+def calibration_grid(x=0.1, y=0.1, w=0.8, h=0.8, nx=5, ny=5):
+    """Kalibrier-Raster mit Nummern, um Papier-Maßstab zu prüfen."""
+    paths = grid(x, y, w, h, nx, ny)
+    for i in range(nx + 1):
+        gx = x + w * i / nx
+        paths.extend(text_paths(str(i % 10), gx + 0.01, y + h + 0.03, 0.05))
+    return paths
+
+
 def grid(x, y, w, h, nx, ny):
     """Liniengitter als Pfade."""
     paths = []

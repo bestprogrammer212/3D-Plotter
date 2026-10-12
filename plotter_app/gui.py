@@ -61,7 +61,7 @@ class PlotterApp(tk.Tk):
         jog.pack(pady=10, padx=10, fill="x")
         ttk.Label(jog, text="Schrittweite (mm):").grid(row=0, column=0, rowspan=2, padx=6)
         self.jog_step = tk.DoubleVar(value=10.0)
-        for i, (val, col) in enumerate([(1.0, 1), (10.0, 2), (50.0, 3)]):
+        for i, (val, col) in enumerate([(0.1, 1), (1.0, 2), (10.0, 3), (50.0, 4)]):
             ttk.Radiobutton(jog, text=f"{val:g}", value=val, variable=self.jog_step).grid(row=i % 2, column=col)
 
         btns = ttk.Frame(jog)
@@ -355,8 +355,14 @@ class PlotterApp(tk.Tk):
             var.trace_add("write", lambda *_: self._update_pen())
             self._z_vars[attr] = var
 
-        wiz = ttk.LabelFrame(tab, text="Stift-Höhe erkennen (Assistent)")
-        wiz.pack(fill="x", pady=8, padx=10)
+        ttk.Label(wiz, text="Stift-Montage:").pack(pady=(6, 2))
+        mount = ttk.Frame(wiz)
+        mount.pack()
+        ttk.Button(mount, text="Preset: Stift auf Nozzle-Niveau",
+                   command=lambda: self._set_mount_preset(0.0)).pack(side="left", padx=4)
+        ttk.Button(mount, text="Preset: Stift unter Nozzle",
+                   command=lambda: self._set_mount_preset(-2.5)).pack(side="left", padx=4)
+
         ttk.Label(wiz, text=(
             "1. Nozzle homen (Home XYZ),\n"
             "2. Papier auf Bett,\n"
@@ -370,6 +376,18 @@ class PlotterApp(tk.Tk):
         self.paper_z_entry.pack(pady=2)
         ttk.Button(wiz, text="Aus Nozzle-Papier-Z berechnen",
                    command=self._calc_from_paper_z).pack(pady=3)
+
+    def _set_mount_preset(self, offset):
+        """Preset für die Stift-Halterung: Offset + typische Z-Werte."""
+        self.pen.pen_offset_z = offset
+        if offset == 0.0:
+            # Stift auf Nozzle-Niveau (z. B. Halter, der den Stift neben der Nozzle hält)
+            self.pen.pen_draw_z = 0.0
+            self.pen.pen_up_z = 5.0
+        else:
+            self.pen.pen_draw_z = offset
+            self.pen.pen_up_z = offset + 5.0
+        self._sync_pen_vars()
 
     def _adopt_pen_height(self):
         """Übernimmt die aktuelle Z-Position als Stift-Zeichen-Höhe."""
@@ -486,10 +504,24 @@ class PlotterApp(tk.Tk):
         ttk.Button(tab, text="Bild laden & tracer", command=self._load_image).pack(pady=3)
         ttk.Button(tab, text="Alles löschen", command=lambda: (self.paths.clear(), self._redraw())).pack(pady=3)
 
+        preset = ttk.LabelFrame(tab, text="Fertige Vorlagen")
+        preset.pack(fill="x", pady=4, padx=10)
+        ttk.Button(preset, text="Höhen-Test (klein)", command=lambda: self._add_preset("test")).pack(side="left", padx=4, pady=3)
+        ttk.Button(preset, text="Kalibrier-Raster", command=lambda: self._add_preset("calgrid")).pack(side="left", padx=4, pady=3)
+        self._do_optimize = tk.BooleanVar(value=True)
+        ttk.Checkbutton(preset, text="Pfade optimieren (beim Export)", variable=self._do_optimize).pack(side="left", padx=8)
+
         self.canvas.bind("<ButtonPress-1>", self._on_press)
         self.canvas.bind("<B1-Motion>", self._on_drag)
         self.canvas.bind("<ButtonRelease-1>", self._on_release)
         self._free_path = None
+
+    def _add_preset(self, kind):
+        if kind == "test":
+            self.paths.extend(tools.test_plot())
+        elif kind == "calgrid":
+            self.paths.extend(tools.calibration_grid())
+        self._redraw()
 
     def _add_shape(self):
         def get(key):
@@ -628,7 +660,8 @@ class PlotterApp(tk.Tk):
             return
         if not messagebox.askyesno("Plot starten", "Plotten jetzt über IP starten?\nStift montiert und Papier aufgelegt?"):
             return
-        gcode = export_gcode(self.paths, self.calibration, self.pen, header_comment="IP Plot Job")
+        paths = tools.optimize_paths(self.paths) if self._do_optimize.get() else self.paths
+        gcode = export_gcode(paths, self.calibration, self.pen, header_comment="IP Plot Job")
         try:
             self.connection.upload_and_start(gcode)
             self.plot_ip_label.config(text="Plot gestartet ✓")
