@@ -55,7 +55,9 @@ class TestNetwork(unittest.TestCase):
 
     def test_moonraker_get_position(self):
         class Handler(http.server.BaseHTTPRequestHandler):
-            def do_GET(self):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", 0))
+                self.rfile.read(length)
                 body = json.dumps({"result": {"status": {"toolhead": {"position": [12.5, 34.7, 0, 0]}}}}).encode()
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(body)))

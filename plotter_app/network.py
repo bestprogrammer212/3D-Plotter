@@ -32,8 +32,15 @@ class PrinterConnection:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 raw = resp.read()
                 return json.loads(raw) if raw else {}
-        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
-            raise PrinterConnectionError(f"Netzwerkfehler ({self.host}): {e}") from e
+        except urllib.error.HTTPError as e:
+            raise PrinterConnectionError(
+                f"HTTP {e.code} von {url} – {e.reason}. "
+                f"Tipp: IP/Port prüfen (Moonraker meist http://IP:7125, "
+                f"OctoPrint http://IP) und API-Key korrekt?") from e
+        except (urllib.error.URLError, OSError) as e:
+            raise PrinterConnectionError(
+                f"Netzwerkfehler ({self.host}): {e}. "
+                "Tipp: Ist der Drucker im selben Netzwerk und die IP richtig?") from e
 
 
 class MoonrakerConnection(PrinterConnection):
@@ -51,11 +58,13 @@ class MoonrakerConnection(PrinterConnection):
         return h
 
     def get_position(self):
-        """Aktuelle X/Y-Position des Werkzeugkopfs abfragen."""
-        res = self._request("GET", "/printer_object/query?toolhead=position", headers=self._headers())
-        pos = res.get("result", {}).get("status", {}).get("toolhead", {}).get("position", [])
+        """Aktuelle X/Y-Position des Werkzeugkopfs abfragen (Moonraker: POST /printer/objects/query)."""
+        res = self._request("POST", "/printer/objects/query",
+                            {"objects": {"toolhead": None}}, headers=self._headers())
+        pos = (res.get("result", {}).get("status", {})
+               .get("toolhead", {}).get("position", []))
         if len(pos) < 2:
-            raise PrinterConnectionError("Position konnte nicht gelesen werden.")
+            raise PrinterConnectionError("Position konnte nicht gelesen werden (toolhead nicht verfügbar).")
         return pos[0], pos[1]
 
     def jog(self, x=None, y=None, z=None, speed=80):
@@ -111,7 +120,8 @@ class MoonrakerConnection(PrinterConnection):
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
 
     def is_printing(self):
-        res = self._request("GET", "/printer_objects/query?print_stats=state", headers=self._headers())
+        res = self._request("POST", "/printer/objects/query",
+                            {"objects": {"print_stats": None}}, headers=self._headers())
         return res.get("result", {}).get("status", {}).get("print_stats", {}).get("state") == "printing"
 
 
@@ -129,11 +139,18 @@ class OctoPrintConnection(PrinterConnection):
         return {"X-Api-Key": self.api_key}
 
     def get_position(self):
-        res = self._request("GET", "/api/printer/tool?history=false", headers=self._headers())
-        pos = res
-        if not pos:
-            raise PrinterConnectionError("Position konnte nicht gelesen werden.")
-        return (pos.get("x", 0.0) or 0.0, pos.get("y", 0.0) or 0.0)
+        """Position über /api/printer/printhead (Axis-Format oder direkt)."""
+        res = self._request("GET", "/api/printer/printhead?history=false", headers=self._headers())
+
+        def axis_val(v):
+            if isinstance(v, dict):
+                return v.get("current") or v.get("offset") or 0.0
+            return v or 0.0
+
+        x, y = axis_val(res.get("x")), axis_val(res.get("y"))
+        if x is None or y is None:
+            raise PrinterConnectionError("Position konnte nicht gelesen werden (printhead nicht verfügbar).")
+        return (float(x), float(y))
 
     def jog(self, x=None, y=None, z=None, speed=80):
         cmds = []
