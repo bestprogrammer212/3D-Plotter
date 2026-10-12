@@ -106,6 +106,54 @@ class PlotterApp(tk.Tk):
                   z=step * dz if dz else None)
         self.after(300, self._refresh_position)
 
+    def _bed_geometry(self):
+        """Bett-Bounds in mm und Skalierung für die Vorschau."""
+        if self.current_printer:
+            bw, bh = float(self.current_printer["bed_x"]), float(self.current_printer["bed_y"])
+        else:
+            bw, bh = 250.0, 250.0
+        xs = [p[0] for p in self.calibration.points] or [0]
+        ys = [p[1] for p in self.calibration.points] or [0]
+        bw = max(bw, max(xs) + 10)
+        bh = max(bh, max(ys) + 10)
+        w = max(self.bed_canvas.winfo_width() - 20, 10)
+        h = max(self.bed_canvas.winfo_height() - 20, 10)
+        scale = min(w / bw, h / bh)
+        ox = (w - bw * scale) / 2 + 10
+        oy = (h - bh * scale) / 2 + 10
+        return bw, bh, scale, ox, oy
+
+    def _draw_bed_preview(self):
+        c = self.bed_canvas
+        c.delete("all")
+        bw, bh, scale, ox, oy = self._bed_geometry()
+        # Bett als Rechteck (Ursprung unten links)
+        c.create_rectangle(ox, oy, ox + bw * scale, oy + bh * scale,
+                            outline="#333", width=2, fill="white")
+        # Raster alle 50 mm
+        for gx in range(0, int(bw) + 1, 50):
+            c.create_line(ox + gx * scale, oy, ox + gx * scale, oy + bh * scale, fill="#ddd")
+        for gy in range(0, int(bh) + 1, 50):
+            c.create_line(ox, oy + (bh - gy) * scale, ox + bw * scale, oy + (bh - gy) * scale, fill="#ddd")
+        # Ecken einzeichnen
+        pts = self.calibration.points
+        if not pts:
+            c.create_text(ox + bw * scale / 2, oy + bh * scale / 2,
+                          text="Noch keine Ecken erfasst", fill="#888")
+            return
+        canvas_pts = [(ox + px * scale, oy + (bh - py) * scale) for (px, py) in pts]
+        if self.calibration.is_complete:
+            poly = canvas_pts + [canvas_pts[0]]
+            flat = [v for p in poly for v in p]
+            c.create_polygon(*flat, fill="#2e7d32", stipple="gray50", outline="")
+        if len(canvas_pts) > 1:
+            c.create_line(*[v for p in canvas_pts for v in p], fill="#1565c0", width=2)
+        for i, (cx, cy) in enumerate(canvas_pts, 1):
+            c.create_oval(cx - 4, cy - 4, cx + 4, cy + 4, fill="#e53935", outline="")
+            c.create_text(cx + 8, cy - 8, text=str(i), fill="#b71c1c", font=("TkDefaultFont", 9, "bold"))
+        last = canvas_pts[-1]
+        c.create_oval(last[0] - 6, last[1] - 6, last[0] + 6, last[1] + 6, outline="#e53935", width=2)
+
     def _refresh_position(self):
         if not self.connection:
             return
@@ -116,6 +164,12 @@ class PlotterApp(tk.Tk):
             self.cal_x.insert(0, f"{pos[0]:.2f}")
             self.cal_y.delete(0, "end")
             self.cal_y.insert(0, f"{pos[1]:.2f}")
+            # Stift-Position live in der Bett-Vorschau anzeigen
+            bw, bh, scale, ox, oy = self._bed_geometry()
+            self.bed_canvas.delete("penpos")
+            cx, cy = ox + pos[0] * scale, oy + (bh - pos[1]) * scale
+            self.bed_canvas.create_oval(cx - 5, cy - 5, cx + 5, cy + 5,
+                                        fill="#ff9800", outline="#e65100", tags="penpos")
         except PrinterConnectionError:
             pass
 
@@ -204,6 +258,14 @@ class PlotterApp(tk.Tk):
         net.pack(fill="x", pady=8, padx=10)
         ttk.Label(net, text="Stift mit Jog (Tab 'Verbindung') an die Ecke fahren, dann:").pack(pady=2)
         ttk.Button(net, text="Aktuelle Position auslesen", command=self._refresh_position).pack(pady=3)
+
+        # Live-Vorschau der Ecken auf dem Bett
+        prev = ttk.LabelFrame(tab, text="Bett-Vorschau (Ecken live)")
+        prev.pack(fill="both", expand=True, pady=8, padx=10)
+        self.bed_canvas = tk.Canvas(prev, bg="#f0f0f0", height=260)
+        self.bed_canvas.pack(fill="both", expand=True, padx=6, pady=6)
+        self.bed_canvas.bind("<Configure>", lambda _e: self._draw_bed_preview())
+
         self.cal_status = ttk.Label(tab, text="Status: nicht kalibriert")
         self.cal_status.pack()
 
@@ -257,6 +319,7 @@ class PlotterApp(tk.Tk):
         if self.calibration.is_complete:
             status += " — kalibriert ✓"
         self.cal_status.config(text=status)
+        self._draw_bed_preview()
 
     # ---------------- Design ----------------
     def _build_design_tab(self):
