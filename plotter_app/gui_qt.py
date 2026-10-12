@@ -634,7 +634,8 @@ class PlotterWindow(QtWidgets.QMainWindow):
             self.connection.jog(x=step * dx if dx else None,
                                 y=step * dy if dy else None,
                                 z=step * dz if dz else None)
-            QtCore.QTimer.singleShot(250, self._refresh_position)
+            # sofortige Rückmeldung: Position nach kurzer Zeit aktualisieren
+            QtCore.QTimer.singleShot(150, self._refresh_position)
         except PrinterConnectionError as e:
             QtWidgets.QMessageBox.critical(self, "Fehler", str(e))
 
@@ -662,19 +663,68 @@ class PlotterWindow(QtWidgets.QMainWindow):
                 pass
         QtWidgets.QMessageBox.warning(self, "Notaus", "Keine aktive Verbindung – Drucker manuell stoppen!")
 
-    def _keyPressEvent(self, e):
-        if isinstance(self.focusWidget(), (QtWidgets.QLineEdit, QtWidgets.QSpinBox,
-                                          QtWidgets.QDoubleSpinBox, QtWidgets.QComboBox)):
+    def keyPressEvent(self, e):
+        """WASD/RF-Steuerung mit Auto-Repeat: Taste halten = smooth bewegen."""
+        if isinstance(self.focusWidget(), (QtWidgets.QLineEdit, QtWidgets.QTextEdit,
+                                          QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox,
+                                          QtWidgets.QComboBox, QtWidgets.QListWidget)):
+            super().keyPressEvent(e)
             return
         key = e.text().lower()
         mapping = {"w": (0, 1, 0), "s": (0, -1, 0), "a": (-1, 0, 0),
                    "d": (1, 0, 0), "r": (0, 0, 1), "f": (0, 0, -1)}
         if key in mapping:
             self._jog(*mapping[key])
+            # Beim Halten der Taste feuert Qt Auto-Repeat-Events: kontinuierliches Jogen
+            if e.isAutoRepeat():
+                return
+            self._start_hold_jog(mapping[key])
+            return
+        super().keyPressEvent(e)
+
+    def keyReleaseEvent(self, e):
+        key = e.text().lower()
+        if key in "wasdrf":
+            self._stop_hold_jog()
+        super().keyReleaseEvent(e)
+
+    def _start_hold_jog(self, direction):
+        """Gehaltene Taste: wiederholt kleine Schritte senden (smooth)."""
+        if getattr(self, "_hold_timer", None):
+            return  # läuft schon
+        self._hold_dir = direction
+        self._hold_timer = QtCore.QTimer(self)
+        self._hold_timer.setInterval(150)
+        self._hold_timer.timeout.connect(self._hold_tick)
+        self._hold_timer.start()
+
+    def _hold_tick(self):
+        """Ein einzelner feiner Schritt pro Timer-Intervall – smooth & kontrollierbar."""
+        if not self.connection:
+            self._stop_hold_jog()
+            return
+        step = min(self.step_combo.currentData(), 1.0)  # beim Halten max. 1 mm pro Tick
+        dx, dy, dz = self._hold_dir
+        try:
+            self.connection.jog(x=step * dx if dx else None,
+                                y=step * dy if dy else None,
+                                z=step * dz if dz else None)
+        except PrinterConnectionError:
+            self._stop_hold_jog()
+            return
+        QtCore.QTimer.singleShot(120, self._refresh_position)
+
+    def _stop_hold_jog(self):
+        if getattr(self, "_hold_timer", None):
+            self._hold_timer.stop()
+            self._hold_timer.deleteLater()
+            self._hold_timer = None
 
     def _start_polling(self):
         def poll():
             if self.connection:
+                # während gehaltener Jog-Taste schneller aktualisieren
+                interval = 350 if getattr(self, "_hold_timer", None) else 1000
                 try:
                     self._show_pos(self.connection.get_position())
                     self._poll_fail = 0
@@ -685,7 +735,9 @@ class PlotterWindow(QtWidgets.QMainWindow):
                         self.conn_label.setStyleSheet("color:#ef5350;")
                         self.connection = None
                         self._poll_fail = 0
-            QtCore.QTimer.singleShot(1000, poll)
+            else:
+                interval = 1000
+            QtCore.QTimer.singleShot(interval, poll)
         QtCore.QTimer.singleShot(1000, poll)
 
     # ---------- Settings ----------
