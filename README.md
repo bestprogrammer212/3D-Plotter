@@ -15,7 +15,10 @@ Desktop-App (Python/tkinter), mit der ein normaler 3D-Drucker als Stift-Plotter 
    Zeichengeschwindigkeit, kleiner Hub zwischen Pfaden.
 4. **Design** – Werkzeuge: Rechteck, Kreis, Stern, Spirale, Raster, Text (Stroke-Font),
    Bild-Tracing (Pillow) und Freihand-Zeichnen auf der Leinwand.
-5. **Export** – Erzeugt G-Code (`G0`/`G1`, Stift hoch/runter über Z), speicherbar als `.gcode`.
+5. **Notaus** – Roter NOTAUS-Knopf oben (immer sichtbar) nutzt Moonrakers `/printer/emergency_stop` (wirkt sofort, nicht über die G-Code-Warteschlange).
+6. **Auto-Speichern** – Ecken, Stifthöhen, Drucker und IP werden beim Schließen gespeichert und beim Start geladen.
+7. **SVG-Import** – Eigene Zeichnungen/Logos als SVG laden und direkt plotten.
+8. **Export** – Erzeugt G-Code (`G0`/`G1`, Stift hoch/runter über Z), speicherbar als `.gcode`, mit optionaler Pfad-Optimierung.
 
 ## Installation
 
@@ -47,7 +50,9 @@ Alle Python-Dateien, die das Projekt benötigt:
 | `plotter_app/pen.py` | Stift-Höhen & Bewegungsregeln (Pen up/down, Hübe, Geschwindigkeiten) |
 | `plotter_app/tools.py` | Design-Werkzeuge: Formen, Stern, Spirale, Raster, Stroke-Font-Text, Bild-Tracing |
 | `plotter_app/gcode.py` | G-Code-Export (G0/G1, Z-Hub, Speeds) |
-| `plotter_app/network.py` | IP-Anbindung: Moonraker (Klipper) & OctoPrint – Jog, Position, Upload & Start |
+| `plotter_app/network.py` | IP-Anbindung: Moonraker (Klipper) & OctoPrint – Jog, Position, Upload & Start, Notaus |
+| `plotter_app/svg.py` | SVG-Import (paths, polylines, rects, circles → Plotter-Pfade) |
+| `plotter_app/settings.py` | Speichert Ecken, Stifthöhe, Drucker & IP automatisch unter ~/.plotter_app/settings.json |
 | `scripts/extract_orcaslicer.py` | Extrahiert Druckerdaten aus den OrcaSlicer-Profilen in `data/printers.json` (optional, nur für Aktualisierung) |
 | `tests/test_core.py` | Unittests für Kalibrierung, G-Code und Netzwerk |
 

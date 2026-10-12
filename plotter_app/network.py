@@ -136,6 +136,18 @@ class MoonrakerConnection(PrinterConnection):
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
 
+    def emergency_stop(self):
+        """Sofort-Notaus (direkt, nicht über die G-Code-Warteschlange)."""
+        self._request("POST", "/printer/emergency_stop", headers=self._headers())
+
+    def cancel_print(self):
+        self._request("POST", "/printer/print/cancel", headers=self._headers())
+
+    def get_state(self):
+        """Klippy-Zustand abfragen ('ready', 'error', 'shutdown', ...)."""
+        res = self._request("GET", "/printer/info", headers=self._headers())
+        return res.get("result", {}).get("state", "unknown")
+
     def is_printing(self):
         res = self._request("POST", "/printer/objects/query",
                             {"objects": {"print_stats": None}}, headers=self._headers())

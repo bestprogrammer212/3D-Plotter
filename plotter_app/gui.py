@@ -10,6 +10,8 @@ from .network import PrinterConnectionError, create_connection
 from .gcode import save_gcode
 from .pen import PenSettings
 from .profiles import load_builtin, load_printer_profile
+from . import settings
+from .svg import load_svg
 
 
 class PlotterApp(tk.Tk):
@@ -504,6 +506,7 @@ class PlotterApp(tk.Tk):
 
         ttk.Button(tab, text="Zeichnen", command=self._add_shape).pack(pady=3)
         ttk.Button(tab, text="Bild laden & tracer", command=self._load_image).pack(pady=3)
+        ttk.Button(tab, text="SVG importieren", command=self._load_svg).pack(pady=3)
         ttk.Button(tab, text="Alles löschen", command=lambda: (self.paths.clear(), self._redraw())).pack(pady=3)
 
         preset = ttk.LabelFrame(tab, text="Fertige Vorlagen")
@@ -517,6 +520,24 @@ class PlotterApp(tk.Tk):
         self.canvas.bind("<B1-Motion>", self._on_drag)
         self.canvas.bind("<ButtonRelease-1>", self._on_release)
         self._free_path = None
+
+    def _load_svg(self):
+        path = filedialog.askopenfilename(filetypes=[("SVG", "*.svg"), ("Alle", "*.*")])
+        if not path:
+            return
+        bed_w = self.current_printer["bed_x"] if self.current_printer else 200
+        bed_h = self.current_printer["bed_y"] if self.current_printer else 200
+        try:
+            paths = load_svg(path, bed_w=bed_w, bed_h=bed_h)
+        except Exception as e:
+            messagebox.showerror("Fehler", f"SVG konnte nicht geladen werden:\n{e}")
+            return
+        if not paths:
+            messagebox.showwarning("SVG", "Keine Pfad-Daten im SVG gefunden (nur paths/polylines/rects/circles werden unterstützt).")
+            return
+        self.paths.extend(paths)
+        self._redraw()
+        messagebox.showinfo("SVG", f"{len(paths)} Pfade importiert.")
 
     def _add_preset(self, kind):
         if kind == "test":
@@ -673,8 +694,44 @@ class PlotterApp(tk.Tk):
             messagebox.showerror("Netzwerkfehler", str(e))
 
 
+    def _emergency_stop(self):
+        """Sofort-Notaus über Moonraker (direkt, nicht via G-Code-Warteschlange)."""
+        if self.connection and hasattr(self.connection, "emergency_stop"):
+            try:
+                self.connection.emergency_stop()
+                self.conn_status.config(text="Status: NOTAUS ausgelöst!")
+                return
+            except PrinterConnectionError:
+                pass
+        messagebox.showwarning("Notaus", "Keine aktive Verbindung – Drucker ggf. manuell stoppen!")
+
+    def _load_settings(self):
+        """Gespeicherte Einstellungen laden (automatisch beim Start)."""
+        data = settings.load()
+        if not data:
+            return
+        settings.apply_to(data, self.calibration, self.pen)
+        self._saved_printer = data.get("printer")
+        self._saved_host = data.get("host", "")
+        self._saved_kind = data.get("conn_kind", "moonraker")
+
+    def _save_settings(self):
+        try:
+            settings.save(self.calibration, self.pen,
+                          self.current_printer["name"] if self.current_printer else None,
+                          self.conn_host.get() if hasattr(self, "conn_host") else "",
+                          self.conn_kind.get() if hasattr(self, "conn_kind") else "moonraker")
+        except OSError:
+            pass
+
+    def on_close(self):
+        self._save_settings()
+        self.destroy()
+
+
 def main():
     app = PlotterApp()
+    app.protocol("WM_DELETE_WINDOW", app.on_close)
     app.mainloop()
 
 
