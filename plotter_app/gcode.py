@@ -11,6 +11,7 @@ def export_gcode(paths, calibration: Calibration, pen: PenSettings, header_comme
     lines.append(f"; Ecken: {len(calibration.points)}")
     lines.append("G90 ; absolute coordinates")
     lines.append("G21 ; mm")
+    lines.append("G28 ; home all axes (Stift-Bezug sicherstellen)")
     lines.append("M107 ; fans off")
 
     first = True

@@ -39,6 +39,41 @@ def spiral(cx, cy, r_max, turns=4, steps=400):
     return pts
 
 
+def ellipse(cx, cy, rx, ry, steps=96):
+    pts = []
+    for i in range(steps + 1):
+        a = 2 * math.pi * i / steps
+        pts.append((cx + rx * math.cos(a), cy + ry * math.sin(a)))
+    return pts
+
+
+def heart(cx, cy, s, steps=120):
+    pts = []
+    for i in range(steps + 1):
+        t = 2 * math.pi * i / steps
+        x = 16 * math.sin(t) ** 3
+        y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        pts.append((cx + s * x / 32, cy + s * y / 32))
+    return pts
+
+
+def wave(x, y, width, amplitude, cycles=5, steps=200):
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        pts.append((x + width * t, y + amplitude * math.sin(2 * math.pi * cycles * t)))
+    return pts
+
+
+def polygon(cx, cy, r, n, rotation=0.0):
+    """Regelmäßiges n-Eck."""
+    pts = []
+    for i in range(n + 1):
+        a = 2 * math.pi * i / n + rotation
+        pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
 def polyline(points):
     return [tuple(p) for p in points]
 

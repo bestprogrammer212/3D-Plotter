@@ -248,28 +248,35 @@ class PlotterApp(tk.Tk):
 
         self.printer_list = tk.Listbox(tab, height=10)
         self.printer_list.pack(fill="x", padx=20, pady=5)
-        for p in self.printers:
-            self.printer_list.insert("end", f"{p['name']} — Bett {p['bed_x']}x{p['bed_y']}x{p['bed_z']} mm")
         self.printer_list.bind("<Double-1>", self._select_printer)
+        self.printer_list.bind("<<ListboxSelect>>", self._select_printer)
+        self._filter_printers()
         search_entry.focus_set()
 
         ttk.Button(tab, text="OrcaSlicer-Profil importieren (.json)", command=self._import_profile).pack(pady=5)
         ttk.Label(tab, text="Profil aus OrcaSlicer: Hilfe → Profilkurator → Export").pack(pady=2)
 
     def _filter_printers(self):
-        """Filtert die Druckerliste anhand des Suchfelds (Name oder Hersteller)."""
+        """Filtert die Druckerliste; merkt sich Index-Mapping zur Gesamtliste."""
         query = self.printer_search.get().strip().lower()
         self.printer_list.delete(0, "end")
-        for p in self.printers:
+        self._printer_map = []
+        for i, p in enumerate(self.printers):
             if query and query not in p["name"].lower() and query not in p.get("vendor", "").lower():
                 continue
             self.printer_list.insert("end", f"{p['name']} — Bett {p['bed_x']}x{p['bed_y']}x{p['bed_z']} mm")
+            self._printer_map.append(i)
 
     def _select_printer(self, _event=None):
         sel = self.printer_list.curselection()
-        if sel:
-            self.current_printer = self.printers[sel[0]]
-            messagebox.showinfo("Drucker", f"Ausgewählt: {self.current_printer['name']}")
+        if not sel:
+            return
+        real_idx = self._printer_map[sel[0]]
+        self.current_printer = self.printers[real_idx]
+        try:
+            self._draw_bed_preview()
+        except AttributeError:
+            pass
 
     def _import_profile(self):
         path = filedialog.askopenfilename(filetypes=[("OrcaSlicer Profil", "*.json"), ("Alle Dateien", "*.*")])
@@ -336,6 +343,7 @@ class PlotterApp(tk.Tk):
         for i, (label, attr) in enumerate([
             ("Stift hoch Z (mm)", "pen_up_z"),
             ("Stift Zeichen-Z (mm)", "pen_draw_z"),
+            ("Stift-Offset zur Nozzle (mm, negativ = tiefer)", "pen_offset_z"),
             ("Eilgang F (mm/s)", "travel_speed"),
             ("Zeichen-F (mm/s)", "draw_speed"),
             ("Hub zwischen Pfaden (mm)", "z_lift_between_paths"),
@@ -347,7 +355,64 @@ class PlotterApp(tk.Tk):
             var.trace_add("write", lambda *_: self._update_pen())
             self._z_vars[attr] = var
 
+        wiz = ttk.LabelFrame(tab, text="Stift-Höhe erkennen (Assistent)")
+        wiz.pack(fill="x", pady=8, padx=10)
+        ttk.Label(wiz, text=(
+            "1. Nozzle homen (Home XYZ),\n"
+            "2. Papier auf Bett,\n"
+            "3. Stift mit R/F ganz vorsichtig auf das Papier senken (bis er gerade berührt)\n"
+            "→ dann 'Aktuelle Stift-Höhe als Zeichen-Z übernehmen'.\n"
+            "Alternativ Nozzle-Papier-Test machen und dessen Z eintragen.")).pack(pady=3)
+        ttk.Button(wiz, text="Aktuelle Stift-Höhe als Zeichen-Z übernehmen",
+                   command=self._adopt_pen_height).pack(pady=3)
+        ttk.Label(wiz, text="Nozzle-Papier-Z (mm):", ).pack(pady=(5, 0))
+        self.paper_z_entry = ttk.Entry(wiz, width=10)
+        self.paper_z_entry.pack(pady=2)
+        ttk.Button(wiz, text="Aus Nozzle-Papier-Z berechnen",
+                   command=self._calc_from_paper_z).pack(pady=3)
+
+    def _adopt_pen_height(self):
+        """Übernimmt die aktuelle Z-Position als Stift-Zeichen-Höhe."""
+        if not self.connection:
+            messagebox.showerror("Fehler", "Keine Verbindung – zuerst im Tab 'Verbindung' verbinden.")
+            return
+        try:
+            pos = self.connection.get_position()
+        except PrinterConnectionError as e:
+            messagebox.showerror("Fehler", str(e))
+            return
+        z = pos[2] if len(pos) > 2 else None
+        if z is None:
+            messagebox.showerror("Fehler", "Z-Position nicht lesbar.")
+            return
+        self.pen.auto_from_pen_touch(z)
+        self._sync_pen_vars()
+        messagebox.showinfo("Stift-Höhe",
+                            f"Zeichen-Z = {z:.2f} mm übernommen.\nStift hoch = {self.pen.pen_up_z:.2f} mm.")
+
+    def _calc_from_paper_z(self):
+        """Berechnet Stift-Z aus Nozzle-Papier-Test + Stift-Offset."""
+        try:
+            paper_z = float(self.paper_z_entry.get())
+        except ValueError:
+            messagebox.showerror("Fehler", "Bitte Nozzle-Papier-Z als Zahl eingeben.")
+            return
+        self.pen.auto_from_paper_z(paper_z)
+        self._sync_pen_vars()
+        messagebox.showinfo("Stift-Höhe",
+                            (f"Papier-Z {paper_z:.2f} + Offset {self.pen.pen_offset_z:.2f} "
+                             f"→ Zeichen-Z {self.pen.pen_draw_z:.2f}, Stift hoch {self.pen.pen_up_z:.2f}"))
+
+    def _sync_pen_vars(self):
+        """GUI-Felder mit berechneten Pen-Werten synchronisieren."""
+        self._updating_pen = True
+        self._z_vars["pen_up_z"].set(self.pen.pen_up_z)
+        self._z_vars["pen_draw_z"].set(self.pen.pen_draw_z)
+        self._updating_pen = False
+
     def _update_pen(self):
+        if getattr(self, "_updating_pen", False):
+            return
         for attr, var in self._z_vars.items():
             try:
                 setattr(self.pen, attr, var.get())
@@ -398,8 +463,10 @@ class PlotterApp(tk.Tk):
         panel.pack(fill="x", pady=5)
         ttk.Label(panel, text="Tool:").pack(side="left", padx=4)
         self.tool_var = tk.StringVar(value="rect")
-        for name, label in [("rect", "Rechteck"), ("circle", "Kreis"), ("star", "Stern"),
-                            ("spiral", "Spirale"), ("grid", "Raster"), ("text", "Text"),
+        for name, label in [("rect", "Rechteck"), ("circle", "Kreis"), ("ellipse", "Ellipse"),
+                            ("star", "Stern"), ("polygon", "n-Eck"),
+                            ("spiral", "Spirale"), ("wave", "Welle"), ("heart", "Herz"),
+                            ("grid", "Raster"), ("text", "Text"),
                             ("image", "Bild"), ("free", "Freihand")]:
             ttk.Radiobutton(panel, text=label, value=name, variable=self.tool_var).pack(side="left", padx=2)
 
@@ -408,7 +475,7 @@ class PlotterApp(tk.Tk):
         self.param_entries = {}
         for i, (key, default) in enumerate([
             ("x", "0.1"), ("y", "0.1"), ("w/h", "0.5"), ("r", "0.2"),
-            ("nx/ny", "5"), ("text", "PLOT"), ("size", "0.1")]):
+            ("nx/ny", "5"), ("text", "PLOT"), ("size", "0.1"), ("n", "6")]):
             ttk.Label(params, text=key).grid(row=0, column=i * 2, padx=2)
             e = ttk.Entry(params, width=8)
             e.insert(0, default)
@@ -446,6 +513,15 @@ class PlotterApp(tk.Tk):
                 self.paths.append(tools.star(x, y, r, r * 0.4))
             elif tool == "spiral":
                 self.paths.append(tools.spiral(x, y, r))
+            elif tool == "ellipse":
+                self.paths.append(tools.ellipse(x, y, r, r * 0.6))
+            elif tool == "polygon":
+                n = int(get("n")) if get("n").strip() else 6
+                self.paths.append(tools.polygon(x, y, r, n))
+            elif tool == "wave":
+                self.paths.append(tools.wave(x, y, wh[0] if wh else 0.5, r, 5))
+            elif tool == "heart":
+                self.paths.append(tools.heart(x, y, r * 2))
             elif tool == "grid":
                 self.paths.extend(tools.grid(x, y, wh[0], wh[1], nxny[0], nxny[1]))
             elif tool == "text":
@@ -487,12 +563,30 @@ class PlotterApp(tk.Tk):
         self.canvas.delete("all")
         w = max(self.canvas.winfo_width(), 1)
         h = max(self.canvas.winfo_height(), 1)
+        self._draw_paper()
         for path in self.paths + ([self._free_path] if self._free_path else []):
             if not path:
                 continue
             pts = [p for (px, py) in path for p in (px * w, (1 - py) * h)]
             if len(pts) >= 4:
                 self.canvas.create_line(*pts, fill="black", width=2)
+
+    def _draw_paper(self):
+        """Stellt das Papier als Blatt dar: exakt dort, wo die kalibrierten Ecken liegen."""
+        c = self.canvas
+        w = max(c.winfo_width(), 1)
+        h = max(c.winfo_height(), 1)
+        cal = self.calibration
+        if cal.is_complete:
+            # Papier = die kalibrierte Fläche (Ecken 0..1 im Papier-Koordinatensystem)
+            corners = [(0, 0), (1, 0), (1, 1), (0, 1)]
+            flat = [p for (px, py) in corners for p in (px * w, (1 - py) * h)]
+            c.create_polygon(flat, fill="#fff8e1", outline="#c0a040", width=2)
+            c.create_text(w - 60, h - 12, text="Papier", fill="#a08020", anchor="e")
+        else:
+            # Ohne Kalibrierung: gesamtes Blatt als Papier andeuten
+            c.create_rectangle(2, 2, w - 2, h - 2, fill="#fff8e1", outline="#c0a040", width=2)
+            c.create_text(w / 2, h - 14, text="Papier (unkalibriert – gesamte Fläche)", fill="#a08020")
 
     # ---------------- Export ----------------
     def _build_export_tab(self):

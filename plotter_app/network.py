@@ -101,6 +101,18 @@ class MoonrakerConnection(PrinterConnection):
     def home_z(self):
         self.home("Z")
 
+    def probe_paper(self):
+        """Papier-Höhe an aktueller XY-Position messen (Klipper-Bett-Leveling).
+        Versucht bekannte Makros, liefert sonst None."""
+        candidates = ["CALIBRATE", "BED_MESH_CALIBRATE", "PROBE_CALIBRATE", "TESTZ Z=0"]
+        for macro in candidates:
+            try:
+                self._request("POST", "/printer/gcode/script", {"script": macro}, headers=self._headers())
+                return macro
+            except PrinterConnectionError:
+                continue
+        return None
+
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
         """G-Code hochladen und Druck sofort starten."""
         import io

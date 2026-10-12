@@ -11,6 +11,30 @@ class PenSettings:
     z_lift_between_paths: float = 1.0   # kleines Anheben zwischen Pfaden (0 = aus)
     safe_z_margin: float = 5.0          # Freifahrt über Papier hinaus
 
+    # --- Stift-Höhen-Erkennung ---
+    # Der Stift sitzt meist UNTER der Nozzle-Ebene (z. B. mit Klemme montiert).
+    # pen_offset_z = Abstand Stiftspitze <-> Nozzle-Spitze (negativ = Stift tiefer).
+    pen_offset_z: float = 0.0
+    # paper_z = Z-Höhe der Nozzle, wenn die Nozzle das Papier berührt
+    # (z. B. durch Paper-Feeler/CALIBRATE ermittelt).
+    paper_z: float = 0.0
+
+    @property
+    def pen_touch_z(self):
+        """Z (Nozzle-Bezug), bei dem die STIFTSPITZE das Papier berührt."""
+        return self.paper_z + self.pen_offset_z
+
+    def auto_from_paper_z(self, paper_z):
+        """Setzt Z-Werte automatisch aus der gemessenen Papierberühr-Höhe der Nozzle."""
+        self.paper_z = float(paper_z)
+        self.pen_draw_z = self.pen_touch_z
+        self.pen_up_z = self.pen_draw_z + 5.0
+
+    def auto_from_pen_touch(self, pen_touch_z):
+        """Wenn die STIFTSPITZE das Papier berührt, direkt diesen Z-Wert nutzen."""
+        self.pen_draw_z = float(pen_touch_z)
+        self.pen_up_z = self.pen_draw_z + 5.0
+
     def up_gcode(self):
         return [f"G1 Z{self.pen_up_z:.2f} F{self.travel_speed * 60:.0f}"]
 
