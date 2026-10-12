@@ -4,8 +4,10 @@ Desktop-App (Python/tkinter), mit der ein normaler 3D-Drucker als Stift-Plotter 
 
 ## Funktionen
 
-1. **Drucker** – Vordefinierte Liste gängiger Drucker + Import von OrcaSlicer-Maschinenprofilen (JSON).
-   In OrcaSlicer: *Hilfe → Profilkurator → Export*.
+1. **Drucker** – Eingebettete OrcaSlicer-Druckerdatenbank mit **291 Modellen**
+   (Afinia, Anker, Anycubic, Artillery, Bambu Lab, BIQU, Creality, Elegoo, Flashforge,
+   Prusa, Qidi, Voron, …) aus den offiziellen [OrcaSlicer-Profilen](https://github.com/OrcaSlicer/OrcaSlicer/tree/main/resources/profiles)
+   + Import eigener OrcaSlicer-Maschinenprofile (JSON). In OrcaSlicer: *Hilfe → Profilkurator → Export*.
 2. **Kalibrieren** – Der am Extruder befestigte Stift wird nacheinander an die Ecken des Papiers
    gefahren (im **Uhrzeigersinn**, beliebig viele Ecken, mindestens 3) und die angezeigten
    X/Y-Werte werden eingetragen. Daraus berechnet die App das Papier-Koordinatensystem.
@@ -31,18 +33,25 @@ python main.py
 4. Tab *Design*: Formen/Text/Bild platzieren oder freihändig zeichnen.
 5. Tab *Export*: G-Code speichern, auf den Drucker übertragen und starten.
 
-## Projektstruktur
+## Projektstruktur / benötigte .py-Dateien
 
-```
-plotter_app/
-  gui.py          tkinter-Oberfläche (4 Tabs)
-  profiles.py     Druckerprofile + OrcaSlicer-Import
-  calibration.py  Ecken-Kalibrierung → Papierkoordinaten
-  pen.py          Stift-Höhen & Bewegungsregeln
-  tools.py        Design-Werkzeuge (Formen, Text, Bild-Tracing)
-  gcode.py        G-Code-Export
-main.py           Einstiegspunkt
-```
+Alle Python-Dateien, die das Projekt benötigt:
+
+| Datei | Zweck |
+|---|---|
+| `main.py` | Einstiegspunkt – startet die GUI |
+| `plotter_app/__init__.py` | Paket-Metadaten (Version) |
+| `plotter_app/gui.py` | tkinter-Oberfläche: Verbindung (IP), Drucker, Kalibrierung mit Bett-Vorschau, Design, Export |
+| `plotter_app/profiles.py` | Lädt die OrcaSlicer-Druckerdatenbank + JSON-Profilimport |
+| `plotter_app/calibration.py` | Ecken-Kalibrierung (Uhrzeigersinn, beliebig viele Ecken) → Papierkoordinaten |
+| `plotter_app/pen.py` | Stift-Höhen & Bewegungsregeln (Pen up/down, Hübe, Geschwindigkeiten) |
+| `plotter_app/tools.py` | Design-Werkzeuge: Formen, Stern, Spirale, Raster, Stroke-Font-Text, Bild-Tracing |
+| `plotter_app/gcode.py` | G-Code-Export (G0/G1, Z-Hub, Speeds) |
+| `plotter_app/network.py` | IP-Anbindung: Moonraker (Klipper) & OctoPrint – Jog, Position, Upload & Start |
+| `scripts/extract_orcaslicer.py` | Extrahiert Druckerdaten aus den OrcaSlicer-Profilen in `data/printers.json` (optional, nur für Aktualisierung) |
+| `tests/test_core.py` | Unittests für Kalibrierung, G-Code und Netzwerk |
+
+Daten: `data/printers.json` – die 291 Drucker aus OrcaSlicer (automatisch von der App geladen).
 
 ## Hinweise
 

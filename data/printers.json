@@ -1,0 +1,2330 @@
+[
+ {
+  "name": "Afinia H+1(HS)",
+  "vendor": "Afinia",
+  "model_id": "",
+  "bed_x": 207.0,
+  "bed_y": 255.0,
+  "bed_z": 230.0
+ },
+ {
+  "name": "Anker M5",
+  "vendor": "Anker",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anker M5C",
+  "vendor": "Anker",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic 4Max Pro",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 270.0,
+  "bed_y": 205.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Anycubic 4Max Pro 2",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 270.0,
+  "bed_y": 210.0,
+  "bed_z": 190.0
+ },
+ {
+  "name": "Anycubic Chiron",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 450.0
+ },
+ {
+  "name": "Anycubic Kobra",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic Kobra 2",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic Kobra 2 Max",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 420.0,
+  "bed_y": 420.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Anycubic Kobra 2 Neo",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic Kobra 2 Plus",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 320.0,
+  "bed_y": 320.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Anycubic Kobra 2 Pro",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic Kobra 3",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 255.0,
+  "bed_y": 255.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Anycubic Kobra 3 Max",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 426.0,
+  "bed_y": 420.0,
+  "bed_z": 501.0
+ },
+ {
+  "name": "Anycubic Kobra 3 V2",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 255.0,
+  "bed_y": 255.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Anycubic Kobra Max",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 450.0
+ },
+ {
+  "name": "Anycubic Kobra Neo",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic Kobra Plus",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Anycubic Kobra S1",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Anycubic Kobra S1 Max",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Anycubic Kobra X",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 260.0,
+  "bed_y": 260.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Anycubic Predator",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 185.0,
+  "bed_y": 185.0,
+  "bed_z": 455.0
+ },
+ {
+  "name": "Anycubic Vyper",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 255.0,
+  "bed_z": 265.0
+ },
+ {
+  "name": "Anycubic i3 Mega S",
+  "vendor": "Anycubic",
+  "model_id": "",
+  "bed_x": 210.0,
+  "bed_y": 210.0,
+  "bed_z": 205.0
+ },
+ {
+  "name": "Artillery Genius",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Artillery Genius Pro",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Artillery Hornet",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Artillery M1 Pro",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 260.0,
+  "bed_y": 260.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Artillery Sidewinder X1",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Artillery Sidewinder X2",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Artillery Sidewinder X3 Plus",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 305.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Artillery Sidewinder X3 Pro",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 240.0,
+  "bed_y": 245.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Artillery Sidewinder X4 Plus",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 310.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Artillery Sidewinder X4 Pro",
+  "vendor": "Artillery",
+  "model_id": "",
+  "bed_x": 240.0,
+  "bed_y": 250.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Bambu Lab A1 mini",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Bambu Lab A2L",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 330.0,
+  "bed_y": 320.0,
+  "bed_z": 325.0
+ },
+ {
+  "name": "Bambu Lab H2C",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 330.0,
+  "bed_y": 320.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Bambu Lab H2D",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 320.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Bambu Lab H2D Pro",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 320.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Bambu Lab H2S",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 340.0,
+  "bed_y": 320.0,
+  "bed_z": 340.0
+ },
+ {
+  "name": "Bambu Lab X2D",
+  "vendor": "BBL",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 261.0
+ },
+ {
+  "name": "BLOCKS Pro S100",
+  "vendor": "Blocks",
+  "model_id": "",
+  "bed_x": 1000.0,
+  "bed_y": 1000.0,
+  "bed_z": 900.0
+ },
+ {
+  "name": "BLOCKS RD50 V2",
+  "vendor": "Blocks",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "BLOCKS RF50",
+  "vendor": "Blocks",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Construct 1",
+  "vendor": "CONSTRUCT3D",
+  "model_id": "",
+  "bed_x": 225.0,
+  "bed_y": 260.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Co Print ChromaSet",
+  "vendor": "Co Print",
+  "model_id": "",
+  "bed_x": 225.0,
+  "bed_y": 225.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "CoLiDo 160 V2",
+  "vendor": "CoLiDo",
+  "model_id": "",
+  "bed_x": 160.0,
+  "bed_y": 160.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "CoLiDo DIY 4.0",
+  "vendor": "CoLiDo",
+  "model_id": "",
+  "bed_x": 225.0,
+  "bed_y": 220.0,
+  "bed_z": 230.0
+ },
+ {
+  "name": "CoLiDo DIY 4.0 V2",
+  "vendor": "CoLiDo",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 255.0
+ },
+ {
+  "name": "CoLiDo SR1",
+  "vendor": "CoLiDo",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 251.0
+ },
+ {
+  "name": "CoLiDo X16",
+  "vendor": "CoLiDo",
+  "model_id": "",
+  "bed_x": 160.0,
+  "bed_y": 160.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Comgrow T300",
+  "vendor": "Comgrow",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Comgrow T500",
+  "vendor": "Comgrow",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Creality CR-10",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-10 Max",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 450.0,
+  "bed_y": 450.0,
+  "bed_z": 470.0
+ },
+ {
+  "name": "Creality CR-10 SE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 265.0
+ },
+ {
+  "name": "Creality CR-10 Smart",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-10 Smart Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-10 V2",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-10 V3",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 305.0,
+  "bed_y": 305.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-10S Pro V2",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-20 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality CR-6 Max",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 395.0,
+  "bed_y": 395.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality CR-6 SE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 235.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality CR-M4",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 450.0,
+  "bed_y": 450.0,
+  "bed_z": 470.0
+ },
+ {
+  "name": "Creality CR-M4 SE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 420.0,
+  "bed_y": 420.0,
+  "bed_z": 420.0
+ },
+ {
+  "name": "Creality Ender-2 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 165.0,
+  "bed_y": 165.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Creality Ender-3",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 Max",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 340.0
+ },
+ {
+  "name": "Creality Ender-3 Max Neo",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 320.0
+ },
+ {
+  "name": "Creality Ender-3 Neo",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 S1",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 270.0
+ },
+ {
+  "name": "Creality Ender-3 S1 Plus",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Ender-3 S1 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 270.0
+ },
+ {
+  "name": "Creality Ender-3 S1 Sonic",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 270.0
+ },
+ {
+  "name": "Creality Ender-3 V2",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 V2 Neo",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 V3",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 V3 KE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 245.0
+ },
+ {
+  "name": "Creality Ender-3 V3 Plus",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 330.0
+ },
+ {
+  "name": "Creality Ender-3 V3 SE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality Ender-3 V4",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 235.0
+ },
+ {
+  "name": "Creality Ender-5",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Ender-5 Max",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality Ender-5 Plus",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality Ender-5 Pro (2019)",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Ender-5 S1",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Ender-5 S1 Sonic",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 280.0
+ },
+ {
+  "name": "Creality Ender-5S",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Ender-6",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Creality Hi",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 260.0,
+  "bed_y": 260.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality K1 Max_CFS-C",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality K1 SE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality K1 SE_CFS-C",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality K1C",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality K1C_CFS-C",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality K1_CFS-C",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Creality K2",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 260.0,
+  "bed_y": 260.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Creality K2 Plus",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Creality K2 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality K2 SE",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 215.0,
+  "bed_z": 245.0
+ },
+ {
+  "name": "Creality SPARKX i7",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 260.0,
+  "bed_y": 260.0,
+  "bed_z": 255.0
+ },
+ {
+  "name": "Creality Sermoon D3",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 250.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Sermoon D3 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 290.0,
+  "bed_y": 220.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Creality Sermoon M300",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Creality Sermoon V1",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 175.0,
+  "bed_y": 175.0,
+  "bed_z": 165.0
+ },
+ {
+  "name": "Creality Sermoon V1 Pro",
+  "vendor": "Creality",
+  "model_id": "",
+  "bed_x": 175.0,
+  "bed_y": 175.0,
+  "bed_z": 165.0
+ },
+ {
+  "name": "Cubicon xCeler-I",
+  "vendor": "Cubicon",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 290.0
+ },
+ {
+  "name": "Cubicon xCeler-Mini",
+  "vendor": "Cubicon",
+  "model_id": "",
+  "bed_x": 150.0,
+  "bed_y": 150.0,
+  "bed_z": 150.0
+ },
+ {
+  "name": "Cubicon xCeler-Plus",
+  "vendor": "Cubicon",
+  "model_id": "",
+  "bed_x": 310.0,
+  "bed_y": 310.0,
+  "bed_z": 310.0
+ },
+ {
+  "name": "Generic Belt Printer",
+  "vendor": "Custom",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Generic Klipper Printer",
+  "vendor": "Custom",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Generic Marlin Printer",
+  "vendor": "Custom",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Generic RRF Printer",
+  "vendor": "Custom",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Generic Repetier Printer",
+  "vendor": "Custom",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Generic ToolChanger Printer",
+  "vendor": "Custom",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Dremel 3D20",
+  "vendor": "Dremel",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 150.0,
+  "bed_z": 140.0
+ },
+ {
+  "name": "Dremel 3D40",
+  "vendor": "Dremel",
+  "model_id": "",
+  "bed_x": 97.5,
+  "bed_y": 77.5,
+  "bed_z": 170.0
+ },
+ {
+  "name": "Dremel 3D45",
+  "vendor": "Dremel",
+  "model_id": "",
+  "bed_x": 97.5,
+  "bed_y": 77.5,
+  "bed_z": 170.0
+ },
+ {
+  "name": "Thinker X400",
+  "vendor": "Eryone",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "FLSun Q5",
+  "vendor": "FLSun",
+  "model_id": "",
+  "bed_x": 100.0,
+  "bed_y": 100.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "FLSun QQ-S Pro",
+  "vendor": "FLSun",
+  "model_id": "",
+  "bed_x": 130.0,
+  "bed_y": 130.0,
+  "bed_z": 360.0
+ },
+ {
+  "name": "FLSun S1",
+  "vendor": "FLSun",
+  "model_id": "",
+  "bed_x": 160.0,
+  "bed_y": 160.0,
+  "bed_z": 430.0
+ },
+ {
+  "name": "FLSun Super Racer (SR)",
+  "vendor": "FLSun",
+  "model_id": "",
+  "bed_x": 135.0,
+  "bed_y": 135.0,
+  "bed_z": 330.0
+ },
+ {
+  "name": "FLSun T1",
+  "vendor": "FLSun",
+  "model_id": "",
+  "bed_x": 130.0,
+  "bed_y": 130.0,
+  "bed_z": 330.0
+ },
+ {
+  "name": "FLSun V400",
+  "vendor": "FLSun",
+  "model_id": "",
+  "bed_x": 150.0,
+  "bed_y": 150.0,
+  "bed_z": 410.0
+ },
+ {
+  "name": "Flashforge AD5X",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 220.0
+ },
+ {
+  "name": "Flashforge Adventurer A5",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 110.0,
+  "bed_y": 110.0,
+  "bed_z": 220.0
+ },
+ {
+  "name": "Flashforge Creator 5",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Flashforge Creator 5 Pro",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Flashforge Guider 2s",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 140.0,
+  "bed_y": 125.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Flashforge Guider4",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Flashforge Guider4 Pro",
+  "vendor": "Flashforge",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "FlyingBear Ghost 6",
+  "vendor": "FlyingBear",
+  "model_id": "",
+  "bed_x": 255.0,
+  "bed_y": 210.0,
+  "bed_z": 210.0
+ },
+ {
+  "name": "FlyingBear Reborn3",
+  "vendor": "FlyingBear",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Folgertech FT-5",
+  "vendor": "Folgertech",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Folgertech FT-6",
+  "vendor": "Folgertech",
+  "model_id": "",
+  "bed_x": 700.0,
+  "bed_y": 350.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Folgertech i3",
+  "vendor": "Folgertech",
+  "model_id": "",
+  "bed_x": 200.0,
+  "bed_y": 200.0,
+  "bed_z": 175.0
+ },
+ {
+  "name": "Geeetech A10 M",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech A10 Pro",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech A10 T",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech A20",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech A20 M",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech A20 T",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech A30 M",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 320.0,
+  "bed_y": 320.0,
+  "bed_z": 420.0
+ },
+ {
+  "name": "Geeetech A30 Pro",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 320.0,
+  "bed_y": 320.0,
+  "bed_z": 420.0
+ },
+ {
+  "name": "Geeetech A30 T",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 320.0,
+  "bed_y": 320.0,
+  "bed_z": 420.0
+ },
+ {
+  "name": "Geeetech M1",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 105.0,
+  "bed_y": 105.0,
+  "bed_z": 95.0
+ },
+ {
+  "name": "Geeetech Mizar",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech Mizar M",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 255.0,
+  "bed_y": 255.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech Mizar Max",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 320.0,
+  "bed_y": 320.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Geeetech Mizar Pro",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech Mizar S",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 255.0,
+  "bed_y": 255.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "Geeetech Thunder",
+  "vendor": "Geeetech",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 260.0
+ },
+ {
+  "name": "IdeaFormer IR3 V2",
+  "vendor": "IdeaFormer",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 2000.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "InfiMech TX",
+  "vendor": "InfiMech",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Kingroon KLP1",
+  "vendor": "Kingroon",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 210.0
+ },
+ {
+  "name": "Kingroon KP3S 3.0",
+  "vendor": "Kingroon",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Kingroon KP3S PRO V2",
+  "vendor": "Kingroon",
+  "model_id": "",
+  "bed_x": 205.0,
+  "bed_y": 205.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Kingroon KP3S V1",
+  "vendor": "Kingroon",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "M3D Enabler D7500",
+  "vendor": "M3D",
+  "model_id": "",
+  "bed_x": 150.0,
+  "bed_y": 150.0,
+  "bed_z": 150.0
+ },
+ {
+  "name": "M3D Enabler D8500",
+  "vendor": "M3D",
+  "model_id": "",
+  "bed_x": 210.0,
+  "bed_y": 150.0,
+  "bed_z": 150.0
+ },
+ {
+  "name": "MM BoneKing",
+  "vendor": "MagicMaker",
+  "model_id": "",
+  "bed_x": 310.0,
+  "bed_y": 306.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "MM hj SK",
+  "vendor": "MagicMaker",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 210.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "MM hqs SF",
+  "vendor": "MagicMaker",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 210.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "MM hqs hj",
+  "vendor": "MagicMaker",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 210.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "MM slb",
+  "vendor": "MagicMaker",
+  "model_id": "",
+  "bed_x": 125.0,
+  "bed_y": 125.0,
+  "bed_z": 160.0
+ },
+ {
+  "name": "M1",
+  "vendor": "Mellow",
+  "model_id": "",
+  "bed_x": 106.0,
+  "bed_y": 106.0,
+  "bed_z": 100.0
+ },
+ {
+  "name": "Meltingplot CHX 350",
+  "vendor": "Meltingplot",
+  "model_id": "",
+  "bed_x": 880.0,
+  "bed_y": 422.0,
+  "bed_z": 943.0
+ },
+ {
+  "name": "Meltingplot MBL 133",
+  "vendor": "Meltingplot",
+  "model_id": "",
+  "bed_x": 835.0,
+  "bed_y": 405.0,
+  "bed_z": 394.0
+ },
+ {
+  "name": "Meltingplot MBL 136",
+  "vendor": "Meltingplot",
+  "model_id": "",
+  "bed_x": 850.0,
+  "bed_y": 405.0,
+  "bed_z": 396.0
+ },
+ {
+  "name": "Meltingplot MBL 308",
+  "vendor": "Meltingplot",
+  "model_id": "",
+  "bed_x": 850.0,
+  "bed_y": 405.0,
+  "bed_z": 896.0
+ },
+ {
+  "name": "Meltingplot MBL 480",
+  "vendor": "Meltingplot",
+  "model_id": "",
+  "bed_x": 850.0,
+  "bed_y": 405.0,
+  "bed_z": 1396.0
+ },
+ {
+  "name": "OpenEYE Peacock V2",
+  "vendor": "OpenEYE",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Peopoly Magneto X",
+  "vendor": "Peopoly",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 400.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Phrozen Arco",
+  "vendor": "Phrozen",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "The Positron",
+  "vendor": "Positron3D",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 165.0
+ },
+ {
+  "name": "BabyBelt Pro",
+  "vendor": "Printcepts",
+  "model_id": "",
+  "bed_x": 95.0,
+  "bed_y": 500.0,
+  "bed_z": 100.0
+ },
+ {
+  "name": "Prusa CORE One HF",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 220.0,
+  "bed_z": 270.0
+ },
+ {
+  "name": "Prusa CORE One L HF",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 331.0
+ },
+ {
+  "name": "Prusa MINI",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Prusa MINI IS",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Prusa MK3.5",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 210.0,
+  "bed_z": 210.0
+ },
+ {
+  "name": "Prusa MK3S",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 210.0,
+  "bed_z": 210.0
+ },
+ {
+  "name": "Prusa MK4",
+  "vendor": "Prusa",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 210.0,
+  "bed_z": 220.0
+ },
+ {
+  "name": "Qidi Q1 Pro",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 245.0,
+  "bed_y": 245.0,
+  "bed_z": 240.0
+ },
+ {
+  "name": "Qidi Q2",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 270.0,
+  "bed_y": 270.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Qidi Q2C",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 270.0,
+  "bed_y": 270.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Qidi X-CF Pro",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 250.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Qidi X-Max",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 250.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Qidi X-Max 3",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 325.0,
+  "bed_y": 325.0,
+  "bed_z": 315.0
+ },
+ {
+  "name": "Qidi X-Max 4",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 390.0,
+  "bed_y": 390.0,
+  "bed_z": 340.0
+ },
+ {
+  "name": "Qidi X-Plus",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 270.0,
+  "bed_y": 200.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Qidi X-Plus 3",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 280.0,
+  "bed_y": 280.0,
+  "bed_z": 270.0
+ },
+ {
+  "name": "Qidi X-Plus 4",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 305.0,
+  "bed_y": 305.0,
+  "bed_z": 280.0
+ },
+ {
+  "name": "Qidi X-Plus 5",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 320.0,
+  "bed_y": 320.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Qidi X-Smart 3",
+  "vendor": "Qidi",
+  "model_id": "",
+  "bed_x": 175.0,
+  "bed_y": 180.0,
+  "bed_z": 170.0
+ },
+ {
+  "name": "RatRig V-Cast",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "RatRig V-Core 3 200",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 200.0,
+  "bed_y": 200.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "RatRig V-Core 3 300",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 3 400",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "RatRig V-Core 3 500",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "RatRig V-Core 4 300",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 4 400",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 4 500",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "RatRig V-Core 4 HYBRID 300",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 4 HYBRID 400",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "RatRig V-Core 4 HYBRID 500",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 300",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 300 COPY MODE",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 225.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 300 MIRROR MODE",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 195.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 400",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 400 COPY MODE",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 400 MIRROR MODE",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 270.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 500",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 500 COPY MODE",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 375.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "RatRig V-Core 4 IDEX 500 MIRROR MODE",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 345.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "RatRig V-Minion",
+  "vendor": "Ratrig",
+  "model_id": "",
+  "bed_x": 180.0,
+  "bed_y": 180.0,
+  "bed_z": 180.0
+ },
+ {
+  "name": "Rolohaun Delta Flyer Refit",
+  "vendor": "RolohaunDesign",
+  "model_id": "",
+  "bed_x": 55.0,
+  "bed_y": 55.0,
+  "bed_z": 115.0
+ },
+ {
+  "name": "Rook MK1 LDO",
+  "vendor": "RolohaunDesign",
+  "model_id": "",
+  "bed_x": 110.0,
+  "bed_y": 110.0,
+  "bed_z": 111.0
+ },
+ {
+  "name": "SecKit SK-Tank",
+  "vendor": "SecKit",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Sovol SV01",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 280.0,
+  "bed_y": 240.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Sovol SV01 Pro",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 280.0,
+  "bed_y": 240.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Sovol SV02",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 280.0,
+  "bed_y": 240.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Sovol SV05",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Sovol SV06",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Sovol SV06 ACE",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Sovol SV06 Plus",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 340.0
+ },
+ {
+  "name": "Sovol SV06 Plus ACE",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Sovol SV07",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Sovol SV07 Plus",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Sovol SV08",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 345.0
+ },
+ {
+  "name": "Sovol SV08 MAX",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Sovol Zero",
+  "vendor": "Sovol",
+  "model_id": "",
+  "bed_x": 152.4,
+  "bed_y": 152.4,
+  "bed_z": 152.4
+ },
+ {
+  "name": "Tiertime UP300 HS",
+  "vendor": "Tiertime",
+  "model_id": "",
+  "bed_x": 207.0,
+  "bed_y": 255.0,
+  "bed_z": 230.0
+ },
+ {
+  "name": "Tiertime UP310 Pro",
+  "vendor": "Tiertime",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Tiertime UP400 Pro",
+  "vendor": "Tiertime",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 350.0,
+  "bed_z": 380.0
+ },
+ {
+  "name": "Tiertime UP600 HS",
+  "vendor": "Tiertime",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 400.0,
+  "bed_z": 600.0
+ },
+ {
+  "name": "TwoTrees SK1",
+  "vendor": "TwoTrees",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "TwoTrees SP-5 Klipper",
+  "vendor": "TwoTrees",
+  "model_id": "",
+  "bed_x": 310.0,
+  "bed_y": 310.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "UltiMaker 2",
+  "vendor": "UltiMaker",
+  "model_id": "",
+  "bed_x": 223.0,
+  "bed_y": 223.0,
+  "bed_z": 205.0
+ },
+ {
+  "name": "UltiMaker S5",
+  "vendor": "UltiMaker",
+  "model_id": "",
+  "bed_x": 330.0,
+  "bed_y": 240.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Voron 0.1",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 120.0,
+  "bed_y": 120.0,
+  "bed_z": 120.0
+ },
+ {
+  "name": "Voron 2.4 250",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 225.0
+ },
+ {
+  "name": "Voron 2.4 300",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 275.0
+ },
+ {
+  "name": "Voron 2.4 350",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 325.0
+ },
+ {
+  "name": "Voron Switchwire 250",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 210.0,
+  "bed_z": 240.0
+ },
+ {
+  "name": "Voron Trident 250",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Voron Trident 300",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Voron Trident 350",
+  "vendor": "Voron",
+  "model_id": "",
+  "bed_x": 350.0,
+  "bed_y": 350.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Voxelab Aquila X2",
+  "vendor": "Voxelab",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Vzbot 235 AWD",
+  "vendor": "Vzbot",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Vzbot 330 AWD",
+  "vendor": "Vzbot",
+  "model_id": "",
+  "bed_x": 330.0,
+  "bed_y": 330.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 230 PRO M2 DIRECT",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 240.0
+ },
+ {
+  "name": "D12 230 PRO M2 MONO DUAL",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 240.0
+ },
+ {
+  "name": "D12 230 PRO SMARTPAD DIRECT",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 240.0
+ },
+ {
+  "name": "D12 230 PRO SMARTPAD MONO DUAL",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 240.0
+ },
+ {
+  "name": "D12 300 PRO M2 DIRECT",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 300 PRO M2 MONO DUAL",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 300 PRO M2 MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 310.0,
+  "bed_y": 310.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 300 PRO SMARTPAD DIRECT",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 300 PRO SMARTPAD MONO DUAL",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 300 PRO SMARTPAD MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 310.0,
+  "bed_y": 310.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "D12 500 PRO M2 DIRECT",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "D12 500 PRO M2 MONO DUAL",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "D12 500 PRO M2 MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 510.0,
+  "bed_y": 510.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "D12 500 PRO SMARTPAD DIRECT",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "D12 500 PRO SMARTPAD MONO DUAL",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "D12 500 PRO SMARTPAD MONO DUAL PoopTool",
+  "vendor": "Wanhao France",
+  "model_id": "",
+  "bed_x": 510.0,
+  "bed_y": 510.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Wanhao D12-300",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-300 MK1",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-300 MK1 BLTouch kit",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-300 MK2",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-300 MK3",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-400 MK1",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-400 MK1 BLTouch kit",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-400 MK2",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-400 MK3",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Wanhao D9-500 MK1",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Wanhao D9-500 MK1 BLTouch kit",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Wanhao D9-500 MK2",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Wanhao D9-500 MK3",
+  "vendor": "Wanhao",
+  "model_id": "",
+  "bed_x": 500.0,
+  "bed_y": 500.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Z-Bolt S1000",
+  "vendor": "Z-Bolt",
+  "model_id": "",
+  "bed_x": 1000.0,
+  "bed_y": 1000.0,
+  "bed_z": 1000.0
+ },
+ {
+  "name": "Z-Bolt S300",
+  "vendor": "Z-Bolt",
+  "model_id": "",
+  "bed_x": 300.0,
+  "bed_y": 300.0,
+  "bed_z": 350.0
+ },
+ {
+  "name": "Z-Bolt S400",
+  "vendor": "Z-Bolt",
+  "model_id": "",
+  "bed_x": 400.0,
+  "bed_y": 400.0,
+  "bed_z": 700.0
+ },
+ {
+  "name": "Z-Bolt S600",
+  "vendor": "Z-Bolt",
+  "model_id": "",
+  "bed_x": 600.0,
+  "bed_y": 600.0,
+  "bed_z": 900.0
+ },
+ {
+  "name": "Z-Bolt S800 Dual",
+  "vendor": "Z-Bolt",
+  "model_id": "",
+  "bed_x": 802.0,
+  "bed_y": 802.0,
+  "bed_z": 802.0
+ },
+ {
+  "name": "re3D Gigabot 4",
+  "vendor": "re3D",
+  "model_id": "",
+  "bed_x": 590.0,
+  "bed_y": 600.0,
+  "bed_z": 600.0
+ },
+ {
+  "name": "re3D Gigabot 4 XLT",
+  "vendor": "re3D",
+  "model_id": "",
+  "bed_x": 590.0,
+  "bed_y": 760.0,
+  "bed_z": 900.0
+ },
+ {
+  "name": "re3D Terabot 4",
+  "vendor": "re3D",
+  "model_id": "",
+  "bed_x": 915.0,
+  "bed_y": 915.0,
+  "bed_z": 1000.0
+ }
+]

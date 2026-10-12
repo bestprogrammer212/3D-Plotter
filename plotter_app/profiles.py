@@ -1,6 +1,8 @@
-"""Druckerprofile: Einlesen von OrcaSlicer-Profilen (.json) und Fallback-Liste."""
+"""Druckerprofile: OrcaSlicer-Datenbank (data/printers.json) und JSON-Import."""
 import json
 import os
+
+DATA_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "printers.json")
 
 BUILTIN_PRINTERS = [
     {"name": "Bambu Lab A1", "bed_x": 256, "bed_y": 256, "bed_z": 256, "max_speed": 500},
@@ -16,6 +18,13 @@ BUILTIN_PRINTERS = [
 
 
 def load_builtin():
+    """Lädt alle Drucker aus der eingebetteten OrcaSlicer-Datenbank (291 Modelle)."""
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
     return list(BUILTIN_PRINTERS)
 
 
