@@ -23,7 +23,7 @@ Desktop-App (Python/tkinter), mit der ein normaler 3D-Drucker als Stift-Plotter 
 ## Installation
 
 ```bash
-pip install pillow   # nur für Bild-Tracing nötig
+pip install -r requirements.txt   # PySide6 + Pillow
 python main.py
 ```
 
@@ -42,9 +42,10 @@ Alle Python-Dateien, die das Projekt benötigt:
 
 | Datei | Zweck |
 |---|---|
-| `main.py` | Einstiegspunkt – startet die GUI |
+| `main.py` | Einstiegspunkt – startet die Qt-GUI (Fallback: tkinter, falls PySide6 fehlt) |
 | `plotter_app/__init__.py` | Paket-Metadaten (Version) |
-| `plotter_app/gui.py` | tkinter-Oberfläche: Verbindung (IP), Drucker, Kalibrierung mit Bett-Vorschau, Design, Export |
+| `plotter_app/gui_qt.py` | **Moderne PySide6/Qt-Oberfläche** (dunkles Design): Verbindung, Jog, Kalibrierung mit Bett-Vorschau, Design-Canvas, Export |
+| `plotter_app/gui.py` | tkinter-Fallback-Oberfläche (nur falls Qt nicht installierbar) |
 | `plotter_app/profiles.py` | Lädt die OrcaSlicer-Druckerdatenbank + JSON-Profilimport |
 | `plotter_app/calibration.py` | Ecken-Kalibrierung (Uhrzeigersinn, beliebig viele Ecken) → Papierkoordinaten |
 | `plotter_app/pen.py` | Stift-Höhen & Bewegungsregeln (Pen up/down, Hübe, Geschwindigkeiten) |
