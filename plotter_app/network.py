@@ -86,15 +86,15 @@ class MoonrakerConnection(PrinterConnection):
             vals.append(f"Z{z:+.2f}")
         parts.append(f"G1 {' '.join(vals)} F{int(speed * 60)}")
         parts.append("G90")
-        self._request("POST", "/printer/gcode/exec", {"script": "\n".join(parts)}, headers=self._headers())
+        self._request("POST", "/printer/gcode/script", {"script": "\n".join(parts)}, headers=self._headers())
 
     def move_absolute(self, x, y, speed=80):
         script = f"G90\nG1 X{x:.2f} Y{y:.2f} F{int(speed * 60)}"
-        self._request("POST", "/printer/gcode/exec", {"script": script}, headers=self._headers())
+        self._request("POST", "/printer/gcode/script", {"script": script}, headers=self._headers())
 
     def home(self, axes="XY"):
         script = "G28 " + " ".join(a.upper() for a in axes)
-        self._request("POST", "/printer/gcode/exec", {"script": script}, headers=self._headers())
+        self._request("POST", "/printer/gcode/script", {"script": script}, headers=self._headers())
 
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
         """G-Code hochladen und Druck sofort starten."""
