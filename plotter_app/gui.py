@@ -355,6 +355,8 @@ class PlotterApp(tk.Tk):
             var.trace_add("write", lambda *_: self._update_pen())
             self._z_vars[attr] = var
 
+        wiz = ttk.LabelFrame(tab, text="Stift-Höhe erkennen (Assistent)")
+        wiz.pack(fill="x", pady=8, padx=10)
         ttk.Label(wiz, text="Stift-Montage:").pack(pady=(6, 2))
         mount = ttk.Frame(wiz)
         mount.pack()
