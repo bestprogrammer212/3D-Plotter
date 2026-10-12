@@ -179,6 +179,17 @@ class BedCanvas(QtWidgets.QWidget):
 
 
 class PlotterWindow(QtWidgets.QMainWindow):
+    @staticmethod
+    def _dspin(lo, hi, value, step=None, decimals=2):
+        """QDoubleSpinBox-Helper, kompatibel mit allen PySide6-Versionen."""
+        sb = QtWidgets.QDoubleSpinBox()
+        sb.setRange(lo, hi)
+        sb.setDecimals(decimals)
+        if step is not None:
+            sb.setSingleStep(step)
+        sb.setValue(value)
+        return sb
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("3D-Plotter")
@@ -313,9 +324,9 @@ class PlotterWindow(QtWidgets.QMainWindow):
         left = QtWidgets.QVBoxLayout()
         gb = QtWidgets.QGroupBox("Ecken erfassen (im Uhrzeigersinn)")
         form = QtWidgets.QGridLayout(gb)
-        self.cal_x = QtWidgets.QDoubleSpinBox(range=(-500, 500), decimals=2)
-        self.cal_y = QtWidgets.QDoubleSpinBox(range=(-500, 500), decimals=2)
-        self.cal_z = QtWidgets.QDoubleSpinBox(range=(-100, 100), decimals=2)
+        self.cal_x = self._dspin(-500, 500, 0.0)
+        self.cal_y = self._dspin(-500, 500, 0.0)
+        self.cal_z = self._dspin(-100, 100, 0.0)
         for w in (self.cal_x, self.cal_y, self.cal_z):
             w.setFixedWidth(90)
         form.addWidget(QtWidgets.QLabel("X:"), 0, 0); form.addWidget(self.cal_x, 0, 1)
@@ -343,12 +354,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
         adopt.clicked.connect(self._adopt_pen_height)
         wf.addWidget(adopt, 1, 0, 1, 2)
         wf.addWidget(QtWidgets.QLabel("Zeichen-Z:"), 2, 0)
-        self.pen_draw_spin = QtWidgets.QDoubleSpinBox(range=(-50, 200), decimals=2)
+        self.pen_draw_spin = self._dspin(-50, 200, self.pen.pen_draw_z)
         self.pen_draw_spin.setValue(self.pen.pen_draw_z)
         self.pen_draw_spin.valueChanged.connect(self._pen_spin_changed)
         wf.addWidget(self.pen_draw_spin, 2, 1)
         wf.addWidget(QtWidgets.QLabel("Stift hoch:"), 3, 0)
-        self.pen_up_spin = QtWidgets.QDoubleSpinBox(range=(-50, 200), decimals=2)
+        self.pen_up_spin = self._dspin(-50, 200, self.pen.pen_up_z)
         self.pen_up_spin.setValue(self.pen.pen_up_z)
         self.pen_up_spin.valueChanged.connect(self._pen_spin_changed)
         wf.addWidget(self.pen_up_spin, 3, 1)
@@ -408,15 +419,17 @@ class PlotterWindow(QtWidgets.QMainWindow):
                                    "Spirale", "Welle", "Herz", "Raster", "Text"])
         sf.addWidget(self.shape_combo, 0, 0, 1, 2)
         sf.addWidget(QtWidgets.QLabel("x / y:"), 1, 0)
-        self.shape_x = QtWidgets.QDoubleSpinBox(range=(0, 1), decimals=2, singleStep=0.05, value=0.2)
-        self.shape_y = QtWidgets.QDoubleSpinBox(range=(0, 1), decimals=2, singleStep=0.05, value=0.2)
+        self.shape_x = self._dspin(0, 1, 0.2, 0.05)
+        self.shape_y = self._dspin(0, 1, 0.2, 0.05)
         sf.addWidget(self.shape_x, 1, 1)
         sf.addWidget(self.shape_y, 1, 2)
         sf.addWidget(QtWidgets.QLabel("r / Größe:"), 2, 0)
-        self.shape_r = QtWidgets.QDoubleSpinBox(range=(0.01, 1), decimals=2, singleStep=0.05, value=0.25)
+        self.shape_r = self._dspin(0.01, 1, 0.25, 0.05)
         sf.addWidget(self.shape_r, 2, 1)
         sf.addWidget(QtWidgets.QLabel("n:"), 3, 0)
-        self.shape_n = QtWidgets.QSpinBox(range=(3, 24), value=6)
+        self.shape_n = QtWidgets.QSpinBox()
+        self.shape_n.setRange(3, 24)
+        self.shape_n.setValue(6)
         sf.addWidget(self.shape_n, 3, 1)
         sf.addWidget(QtWidgets.QLabel("Text:"), 4, 0)
         self.text_edit = QtWidgets.QLineEdit("PLOT")
