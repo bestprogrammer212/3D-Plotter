@@ -12,7 +12,7 @@ class PrinterConnectionError(Exception):
 class PrinterConnection:
     """Basis: HTTP-Requests an die Drucker-API."""
 
-    def __init__(self, host, api_key="", timeout=5):
+    def __init__(self, host, api_key="", timeout=15):
         self.host = host.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
@@ -46,7 +46,7 @@ class PrinterConnection:
 class MoonrakerConnection(PrinterConnection):
     """Klipper über Moonraker (z. B. Fluidd/Mainsail-Reverse-Proxy auf Standard-Port)."""
 
-    def __init__(self, host, api_key="", timeout=5):
+    def __init__(self, host, api_key="", timeout=15):
         if "://" not in host:
             host = f"http://{host}"
         super().__init__(host, api_key, timeout)
@@ -133,7 +133,7 @@ class MoonrakerConnection(PrinterConnection):
 class OctoPrintConnection(PrinterConnection):
     """OctoPrint, Standard-Port 80 (API-Key erforderlich)."""
 
-    def __init__(self, host, api_key="", timeout=5):
+    def __init__(self, host, api_key="", timeout=15):
         if "://" not in host:
             host = f"http://{host}"
         super().__init__(host, api_key, timeout)

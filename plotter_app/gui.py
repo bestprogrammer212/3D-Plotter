@@ -113,8 +113,9 @@ class PlotterApp(tk.Tk):
         self.after(300, self._refresh_position)
 
     def _on_key(self, event):
-        """WASD/RF-Tastatursteuerung, aber nicht während Texteingaben."""
-        if isinstance(self.focus_get(), (ttk.Entry, tk.Entry, tk.Listbox, tk.Text)):
+        """WASD/RF-Steuerung – aktiv, außer der Fokus ist in einem Textfeld mit Inhalt."""
+        widget = self.focus_get()
+        if isinstance(widget, (ttk.Entry, tk.Entry, tk.Text)):
             return
         key = (event.keysym or "").lower()
         mapping = {
@@ -128,6 +129,7 @@ class PlotterApp(tk.Tk):
         if key in mapping and self.connection:
             dx, dy, dz = mapping[key]
             self._jog(dx, dy, dz)
+            self.after(300, self._refresh_position)
 
     def _bed_geometry(self):
         """Bett-Bounds in mm und Skalierung für die Vorschau."""
@@ -187,6 +189,9 @@ class PlotterApp(tk.Tk):
             self.cal_x.insert(0, f"{pos[0]:.2f}")
             self.cal_y.delete(0, "end")
             self.cal_y.insert(0, f"{pos[1]:.2f}")
+            if len(pos) > 2:
+                self.cal_z.delete(0, "end")
+                self.cal_z.insert(0, f"{pos[2]:.2f}")
             # Stift-Position live in der Bett-Vorschau anzeigen
             bw, bh, scale, ox, oy = self._bed_geometry()
             self.bed_canvas.delete("penpos")
@@ -200,10 +205,19 @@ class PlotterApp(tk.Tk):
         if self.connection and self.conn_kind.get() == "moonraker":
             try:
                 pos = self.connection.get_position()
-                self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f} Z={pos[2]:.2f}")
+                if len(pos) > 2:
+                    self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f} Z={pos[2]:.2f}")
+                else:
+                    self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f}")
             except PrinterConnectionError:
-                self.conn_status.config(text="Status: Verbindung verloren")
-                self.connection = None
+                # erst nach 3 Fehlversuchen in Folge die Verbindung fallen lassen
+                self._poll_fail = getattr(self, "_poll_fail", 0) + 1
+                if self._poll_fail >= 3:
+                    self.conn_status.config(text="Status: Verbindung verloren")
+                    self.connection = None
+                    self._poll_fail = 0
+            else:
+                self._poll_fail = 0
         self.after(1000, self._poll_position)
 
     def _net(self, action, *args, **kwargs):
@@ -293,6 +307,7 @@ class PlotterApp(tk.Tk):
 
 
         ttk.Button(tab, text="Ecke übernehmen", command=self._add_corner).pack(pady=3)
+        ttk.Label(tab, text="Tipp: Stift mit W/S/A/D (X/Y) und R/F (Z) bewegen – funktioniert auch hier.").pack()
         ttk.Button(tab, text="Letzte Ecke löschen", command=self._pop_corner).pack(pady=3)
         ttk.Button(tab, text="Alle Ecken löschen", command=self._clear_corners).pack(pady=3)
 
@@ -349,6 +364,7 @@ class PlotterApp(tk.Tk):
             return
         self.calibration.add_point(x, y, z)
         self._refresh_corners()
+        self.focus_set()
 
     def _pop_corner(self):
         self.calibration.pop_point()
