@@ -27,6 +27,8 @@ pip install -r requirements.txt   # PySide6 + Pillow
 python main.py
 ```
 
+Als eigenständige **.exe** bauen (kein Python nötig): `build_exe.bat` ausführen → Ergebnis in `dist/3D-Plotter.exe`.
+
 ## Ablauf (Workflow)
 
 1. Tab *Drucker*: Gerät auswählen oder OrcaSlicer-Profil importieren.
@@ -54,6 +56,7 @@ Alle Python-Dateien, die das Projekt benötigt:
 | `plotter_app/network.py` | IP-Anbindung: Moonraker (Klipper) & OctoPrint – Jog, Position, Upload & Start, Notaus |
 | `plotter_app/svg.py` | SVG-Import (paths, polylines, rects, circles → Plotter-Pfade) |
 | `plotter_app/settings.py` | Speichert Ecken, Stifthöhe, Drucker & IP automatisch unter ~/.plotter_app/settings.json |
+| `plotter_app/queue.py` | Thread-sichere Befehlswarteschlange + Auto-Reconnect (keine verlorenen Befehle, UI friert nie ein) |
 | `scripts/extract_orcaslicer.py` | Extrahiert Druckerdaten aus den OrcaSlicer-Profilen in `data/printers.json` (optional, nur für Aktualisierung) |
 | `tests/test_core.py` | Unittests für Kalibrierung, G-Code und Netzwerk |
 

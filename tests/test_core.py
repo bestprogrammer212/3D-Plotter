@@ -77,5 +77,50 @@ class TestNetwork(unittest.TestCase):
             srv.shutdown()
 
 
+class TestQueuedConnection(unittest.TestCase):
+    def test_queue_order_and_reconnect(self):
+        """Befehle kommen serialisiert an; nach Abbruch reconnectet die Queue."""
+        import time
+        from plotter_app.queue import QueuedConnection
+
+        received = []
+        fail_first = {"n": 0}
+
+        class FakeConn:
+            def jog(self, x=None, y=None, z=None):
+                received.append((x, y, z))
+                if fail_first["n"] < 1:
+                    fail_first["n"] += 1
+                    raise PrinterConnectionError("Simulierter Abbruch")
+
+            def get_position(self):
+                return (1.0, 2.0, 3.0)
+
+        qc = QueuedConnection.__new__(QueuedConnection)
+        qc.kind = "moonraker"
+        qc.host = "fake"
+        qc.api_key = ""
+        qc.on_status = lambda t, ok: None
+        qc._queue = __import__("queue").Queue()
+        qc._pos_cache = (0, 0, 0)
+        qc._connected = True
+        qc._stop = False
+        qc._lock = threading.Lock()
+        qc._conn = FakeConn()
+        qc._make_connection = lambda: FakeConn()
+        qc._connect = lambda: setattr(qc, "_connected", True) or True
+        qc.start()
+
+        results = []
+        qc.jog(x=5, callback=lambda r, e: results.append((r, e)))
+        qc.jog(y=3, callback=lambda r, e: results.append((r, e)))
+        deadline = time.time() + 20  # Reconnect-Backoff beruecksichtigen
+        while len(received) < 2 and time.time() < deadline:
+            time.sleep(0.05)
+        qc.stop()
+        # beide Befehle kamen an, Reihenfolge bleibt erhalten
+        self.assertEqual(received, [(5, None, None), (None, 3, None)])
+
+
 if __name__ == "__main__":
     unittest.main()

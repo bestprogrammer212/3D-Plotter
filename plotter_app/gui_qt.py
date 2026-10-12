@@ -7,7 +7,8 @@ from PySide6 import QtCore, QtGui, QtWidgets
 from . import settings, tools
 from .calibration import Calibration
 from .gcode import export_gcode, save_gcode
-from .network import PrinterConnectionError, create_connection
+from .network import PrinterConnectionError
+from .queue import QueuedConnection
 from .pen import PenSettings
 from .profiles import load_builtin, load_printer_profile
 from .svg import load_svg
@@ -557,19 +558,23 @@ class PlotterWindow(QtWidgets.QMainWindow):
     def _plot_over_ip(self):
         if not self._validate_for_export() or not self.connection:
             return
-        if self.connection.is_printing():
-            QtWidgets.QMessageBox.warning(self, "Plot", "Der Drucker druckt bereits.")
+        if not self.connection.is_connected():
+            QtWidgets.QMessageBox.warning(self, "Plot", "Keine Verbindung zum Drucker.")
             return
         btn = QtWidgets.QMessageBox.question(self, "Plot starten", "Jetzt über IP plotten?")
         if btn != QtWidgets.QMessageBox.Yes:
             return
         paths = tools.optimize_paths(self.paths) if self.optimize_check.isChecked() else self.paths
         gcode = export_gcode(paths, self.calibration, self.pen, header_comment="IP Plot Job")
-        try:
-            self.connection.upload_and_start(gcode)
-            self.statusBar().showMessage("Plot gestartet", 5000)
-        except PrinterConnectionError as e:
-            QtWidgets.QMessageBox.critical(self, "Netzwerkfehler", str(e))
+
+        def cb(ok, err):
+            def apply():
+                if err:
+                    QtWidgets.QMessageBox.critical(self, "Netzwerkfehler", err)
+                else:
+                    self.statusBar().showMessage("Plot gestartet", 5000)
+            QtCore.QTimer.singleShot(0, apply)
+        self.connection.upload_and_start(gcode, callback=cb)
 
     def _validate_for_export(self):
         if not self.paths:
@@ -581,43 +586,55 @@ class PlotterWindow(QtWidgets.QMainWindow):
         return True
 
     # ---------- Netzwerk / Aktionen ----------
+    def _on_conn_status(self, text, ok):
+        """Callback aus dem Verbindungs-Thread (thread-safe via QueuedConnection)."""
+        def apply():
+            self.conn_label.setText(text)
+            self.conn_label.setStyleSheet("color:#66bb6a;" if ok else "color:#ef5350;")
+        QtCore.QMetaObject.invokeMethod(self, "_none", QtCore.Qt.AutoConnection) if False else None
+        QtCore.QTimer.singleShot(0, apply)
+
     def _connect(self):
         kind = "moonraker" if self.kind_combo.currentIndex() == 0 else "octoprint"
         host = self.host_edit.text().strip()
         if not host:
             QtWidgets.QMessageBox.warning(self, "Verbindung", "Bitte IP/Host angeben.")
             return
-        try:
-            self.connection = create_connection(kind, host, self.key_edit.text().strip())
-            pos = self.connection.get_position()
+        if self.connection:
+            self.connection.stop()
+        self.connection = QueuedConnection(
+            kind, host, self.key_edit.text().strip(), on_status=self._on_conn_status)
+        self.connection.start()
+        self.connection.request_position(
+            lambda pos, err: QtCore.QTimer.singleShot(
+                0, lambda: self._pos_cb(pos, err)))
+
+    def _pos_cb(self, pos, err):
+        if err:
+            return
+        if pos:
             self._show_pos(pos)
-            self.conn_label.setText(f"Verbunden mit {host} ✓")
-            self.conn_label.setStyleSheet("color:#66bb6a;")
-        except PrinterConnectionError as e:
-            self.connection = None
-            self.conn_label.setText("Verbindung fehlgeschlagen")
-            self.conn_label.setStyleSheet("color:#ef5350;")
-            QtWidgets.QMessageBox.critical(self, "Fehler", str(e))
+            self.cal_x.setValue(pos[0])
+            self.cal_y.setValue(pos[1])
+            if len(pos) > 2:
+                self.cal_z.setValue(pos[2])
 
     def _get_pos(self):
         if not self.connection:
             QtWidgets.QMessageBox.warning(self, "Verbindung", "Keine Verbindung.")
             return None
-        try:
-            return self.connection.get_position()
-        except PrinterConnectionError as e:
-            QtWidgets.QMessageBox.critical(self, "Fehler", str(e))
-            return None
+        return self.connection.get_cached_position()
 
     def _refresh_position(self):
-        pos = self._get_pos()
-        if not pos:
+        if not self.connection:
             return
-        self.cal_x.setValue(pos[0])
-        self.cal_y.setValue(pos[1])
-        if len(pos) > 2:
-            self.cal_z.setValue(pos[2])
-        self._show_pos(pos)
+        def cb(pos, err):
+            if pos:
+                QtCore.QTimer.singleShot(0, lambda: (self._show_pos(pos),
+                                                    self.cal_x.setValue(pos[0]),
+                                                    self.cal_y.setValue(pos[1]),
+                                                    self.cal_z.setValue(pos[2]) if len(pos) > 2 else None))
+        self.connection.request_position(cb)
 
     def _show_pos(self, pos):
         z = f"  Z={pos[2]:.2f}" if len(pos) > 2 else ""
@@ -630,38 +647,34 @@ class PlotterWindow(QtWidgets.QMainWindow):
         if not self.connection:
             return
         step = self.step_combo.currentData()
-        try:
-            self.connection.jog(x=step * dx if dx else None,
-                                y=step * dy if dy else None,
-                                z=step * dz if dz else None)
-            # sofortige Rückmeldung: Position nach kurzer Zeit aktualisieren
-            QtCore.QTimer.singleShot(150, self._refresh_position)
-        except PrinterConnectionError as e:
-            QtWidgets.QMessageBox.critical(self, "Fehler", str(e))
+        self.connection.jog(x=step * dx if dx else None,
+                            y=step * dy if dy else None,
+                            z=step * dz if dz else None)
+        QtCore.QTimer.singleShot(150, self._refresh_position)
 
     def _home(self, what):
         if not self.connection:
             return
-        try:
-            if what == "Home XY":
-                self.connection.home("XY")
-            elif what == "Home Z":
-                self.connection.home_z()
-            else:
-                self.connection.home("XYZ")
-        except PrinterConnectionError as e:
-            QtWidgets.QMessageBox.critical(self, "Fehler", str(e))
+        if what == "Home XY":
+            self.connection.home("XY")
+        elif what == "Home Z":
+            self.connection.home_z()
+        else:
+            self.connection.home("XYZ")
 
     def _emergency_stop(self):
-        if self.connection and hasattr(self.connection, "emergency_stop"):
-            try:
-                self.connection.emergency_stop()
-                self.conn_label.setText("NOTAUS ausgelöst!")
-                self.conn_label.setStyleSheet("color:#ef5350;")
-                return
-            except PrinterConnectionError:
-                pass
-        QtWidgets.QMessageBox.warning(self, "Notaus", "Keine aktive Verbindung – Drucker manuell stoppen!")
+        if not self.connection:
+            QtWidgets.QMessageBox.warning(self, "Notaus", "Keine aktive Verbindung – Drucker manuell stoppen!")
+            return
+        def cb(ok, err):
+            def apply():
+                if err:
+                    QtWidgets.QMessageBox.warning(self, "Notaus", f"Notaus fehlgeschlagen: {err}\nDrucker manuell stoppen!")
+                else:
+                    self.conn_label.setText("NOTAUS ausgelöst!")
+                    self.conn_label.setStyleSheet("color:#ef5350;")
+            QtCore.QTimer.singleShot(0, apply)
+        self.connection.emergency_stop(callback=cb)
 
     def keyPressEvent(self, e):
         """WASD/RF-Steuerung mit Auto-Repeat: Taste halten = smooth bewegen."""
@@ -699,20 +712,16 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self._hold_timer.start()
 
     def _hold_tick(self):
-        """Ein einzelner feiner Schritt pro Timer-Intervall – smooth & kontrollierbar."""
+        """Ein feiner Schritt pro Intervall – läuft über die Warteschlange."""
         if not self.connection:
             self._stop_hold_jog()
             return
-        step = min(self.step_combo.currentData(), 1.0)  # beim Halten max. 1 mm pro Tick
+        step = min(self.step_combo.currentData(), 1.0)
         dx, dy, dz = self._hold_dir
-        try:
-            self.connection.jog(x=step * dx if dx else None,
-                                y=step * dy if dy else None,
-                                z=step * dz if dz else None)
-        except PrinterConnectionError:
-            self._stop_hold_jog()
-            return
-        QtCore.QTimer.singleShot(120, self._refresh_position)
+        self.connection.jog(x=step * dx if dx else None,
+                            y=step * dy if dy else None,
+                            z=step * dz if dz else None)
+        self._refresh_position()
 
     def _stop_hold_jog(self):
         if getattr(self, "_hold_timer", None):
@@ -722,19 +731,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
     def _start_polling(self):
         def poll():
-            if self.connection:
-                # während gehaltener Jog-Taste schneller aktualisieren
+            if self.connection and self.connection.is_connected():
                 interval = 350 if getattr(self, "_hold_timer", None) else 1000
-                try:
-                    self._show_pos(self.connection.get_position())
-                    self._poll_fail = 0
-                except PrinterConnectionError:
-                    self._poll_fail += 1
-                    if self._poll_fail >= 3:
-                        self.conn_label.setText("Verbindung verloren")
-                        self.conn_label.setStyleSheet("color:#ef5350;")
-                        self.connection = None
-                        self._poll_fail = 0
+                def cb(pos, err):
+                    if pos:
+                        QtCore.QTimer.singleShot(0, lambda: self._show_pos(pos))
+                self.connection.request_position(cb)
             else:
                 interval = 1000
             QtCore.QTimer.singleShot(interval, poll)
