@@ -7,19 +7,24 @@ class Calibration:
 
     def __init__(self):
         self.points = []          # Liste (x, y) in Maschinen-mm, Uhrzeigersinn
+        self.heights = []          # gespeicherte Z-Höhe je Ecke (oder None)
         self.pen_up_z = 20.0      # Stift hoch (Freifahrt)
         self.pen_draw_z = 0.0     # Stift auf Papier
         self.travel_speed = 80.0
         self.draw_speed = 40.0
 
-    def add_point(self, x, y):
+    def add_point(self, x, y, z=None):
         self.points.append((float(x), float(y)))
+        self.heights.append(float(z) if z is not None else None)
 
     def pop_point(self):
+        if self.heights:
+            self.heights.pop()
         return self.points.pop() if self.points else None
 
     def clear(self):
         self.points = []
+        self.heights = []
 
     @property
     def is_complete(self):

@@ -58,13 +58,15 @@ class MoonrakerConnection(PrinterConnection):
         return h
 
     def get_position(self):
-        """Aktuelle X/Y-Position des Werkzeugkopfs abfragen (Moonraker: POST /printer/objects/query)."""
+        """Aktuelle Position des Werkzeugkopfs abfragen; liefert (x, y[, z])."""
         res = self._request("POST", "/printer/objects/query",
                             {"objects": {"toolhead": None}}, headers=self._headers())
         pos = (res.get("result", {}).get("status", {})
                .get("toolhead", {}).get("position", []))
         if len(pos) < 2:
             raise PrinterConnectionError("Position konnte nicht gelesen werden (toolhead nicht verfügbar).")
+        if len(pos) >= 3:
+            return pos[0], pos[1], pos[2]
         return pos[0], pos[1]
 
     def jog(self, x=None, y=None, z=None, speed=80):
@@ -95,6 +97,9 @@ class MoonrakerConnection(PrinterConnection):
     def home(self, axes="XY"):
         script = "G28 " + " ".join(a.upper() for a in axes)
         self._request("POST", "/printer/gcode/script", {"script": script}, headers=self._headers())
+
+    def home_z(self):
+        self.home("Z")
 
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
         """G-Code hochladen und Druck sofort starten."""

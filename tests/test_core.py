@@ -71,8 +71,8 @@ class TestNetwork(unittest.TestCase):
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
             conn = MoonrakerConnection(f"http://127.0.0.1:{srv.server_address[1]}")
-            x, y = conn.get_position()
-            self.assertEqual((x, y), (12.5, 34.7))
+            pos = conn.get_position()
+            self.assertEqual(pos, (12.5, 34.7, 0.0))
         finally:
             srv.shutdown()
 

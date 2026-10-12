@@ -960,6 +960,150 @@
   "bed_z": 170.0
  },
  {
+  "name": "Elegoo Centauri",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Elegoo Centauri 2",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Elegoo Centauri Carbon",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Elegoo Centauri Carbon 2",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 256.0,
+  "bed_y": 256.0,
+  "bed_z": 256.0
+ },
+ {
+  "name": "Elegoo Neptune",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 210.0,
+  "bed_y": 210.0,
+  "bed_z": 200.0
+ },
+ {
+  "name": "Elegoo Neptune 2",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Elegoo Neptune 2D",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Elegoo Neptune 2S",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 250.0
+ },
+ {
+  "name": "Elegoo Neptune 3",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 280.0
+ },
+ {
+  "name": "Elegoo Neptune 3 Max",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 425.0,
+  "bed_y": 425.0,
+  "bed_z": 500.0
+ },
+ {
+  "name": "Elegoo Neptune 3 Plus",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 325.0,
+  "bed_y": 325.0,
+  "bed_z": 400.0
+ },
+ {
+  "name": "Elegoo Neptune 3 Pro",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 280.0
+ },
+ {
+  "name": "Elegoo Neptune 4",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 265.0
+ },
+ {
+  "name": "Elegoo Neptune 4 Max",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 426.0,
+  "bed_y": 426.0,
+  "bed_z": 480.0
+ },
+ {
+  "name": "Elegoo Neptune 4 Plus",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 325.0,
+  "bed_y": 325.0,
+  "bed_z": 385.0
+ },
+ {
+  "name": "Elegoo Neptune 4 Pro",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 230.0,
+  "bed_y": 230.0,
+  "bed_z": 265.0
+ },
+ {
+  "name": "Elegoo Neptune X",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 235.0,
+  "bed_y": 235.0,
+  "bed_z": 300.0
+ },
+ {
+  "name": "Elegoo OrangeStorm Giga",
+  "vendor": "Elegoo",
+  "model_id": "",
+  "bed_x": 810.0,
+  "bed_y": 805.0,
+  "bed_z": 1010.0
+ },
+ {
   "name": "Thinker X400",
   "vendor": "Eryone",
   "model_id": "",
@@ -1080,12 +1224,28 @@
   "bed_z": 210.0
  },
  {
+  "name": "FlyingBear Ghost7",
+  "vendor": "FlyingBear",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 205.0
+ },
+ {
   "name": "FlyingBear Reborn3",
   "vendor": "FlyingBear",
   "model_id": "",
   "bed_x": 300.0,
   "bed_y": 300.0,
   "bed_z": 350.0
+ },
+ {
+  "name": "FlyingBear S1",
+  "vendor": "FlyingBear",
+  "model_id": "",
+  "bed_x": 220.0,
+  "bed_y": 220.0,
+  "bed_z": 250.0
  },
  {
   "name": "Folgertech FT-5",
@@ -1246,6 +1406,22 @@
   "bed_x": 250.0,
   "bed_y": 2000.0,
   "bed_z": 250.0
+ },
+ {
+  "name": "InfiMech EX",
+  "vendor": "InfiMech",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 205.0
+ },
+ {
+  "name": "InfiMech EX+APS",
+  "vendor": "InfiMech",
+  "model_id": "",
+  "bed_x": 250.0,
+  "bed_y": 250.0,
+  "bed_z": 167.0
  },
  {
   "name": "InfiMech TX",

@@ -74,8 +74,14 @@ class PlotterApp(tk.Tk):
             ("Z+", lambda: self._jog(0, 0, +1)),
             ("Z-", lambda: self._jog(0, 0, -1)),
             ("Home XY", lambda: self._net("home", "XY")),
+            ("Home Z", lambda: self._net("home_z")),
+            ("Home XYZ", lambda: self._net("home", "XYZ")),
         ]:
             ttk.Button(btns, text=text, command=cmd, width=6).pack(side="left", padx=2)
+
+        ttk.Label(jog, text="Tastatur: W/S = Y±, A/D = X±, R/F = Z± (Schrittweite oben)").grid(
+            row=4, column=0, columnspan=5, pady=(4, 0))
+        self.bind("<Key>", self._on_key)
 
         self.pos_label = ttk.Label(jog, text="Position: –")
         self.pos_label.grid(row=2, column=0, columnspan=5, pady=4)
@@ -93,7 +99,7 @@ class PlotterApp(tk.Tk):
             self.connection = create_connection(self.conn_kind.get(), host, self.conn_key.get().strip())
             pos = self.connection.get_position()
             self.conn_status.config(text=f"Status: verbunden mit {host} ✓")
-            self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f}")
+            self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f} Z={pos[2]:.2f}")
         except PrinterConnectionError as e:
             self.connection = None
             self.conn_status.config(text="Status: Verbindung fehlgeschlagen")
@@ -105,6 +111,23 @@ class PlotterApp(tk.Tk):
                   y=step * dy if dy else None,
                   z=step * dz if dz else None)
         self.after(300, self._refresh_position)
+
+    def _on_key(self, event):
+        """WASD/RF-Tastatursteuerung, aber nicht während Texteingaben."""
+        if isinstance(self.focus_get(), (ttk.Entry, tk.Entry, tk.Listbox, tk.Text)):
+            return
+        key = (event.keysym or "").lower()
+        mapping = {
+            "w": (0, +1, 0),
+            "s": (0, -1, 0),
+            "a": (-1, 0, 0),
+            "d": (+1, 0, 0),
+            "r": (0, 0, +1),
+            "f": (0, 0, -1),
+        }
+        if key in mapping and self.connection:
+            dx, dy, dz = mapping[key]
+            self._jog(dx, dy, dz)
 
     def _bed_geometry(self):
         """Bett-Bounds in mm und Skalierung für die Vorschau."""
@@ -159,7 +182,7 @@ class PlotterApp(tk.Tk):
             return
         try:
             pos = self.connection.get_position()
-            self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f}")
+            self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f} Z={pos[2]:.2f}")
             self.cal_x.delete(0, "end")
             self.cal_x.insert(0, f"{pos[0]:.2f}")
             self.cal_y.delete(0, "end")
@@ -177,7 +200,7 @@ class PlotterApp(tk.Tk):
         if self.connection and self.conn_kind.get() == "moonraker":
             try:
                 pos = self.connection.get_position()
-                self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f}")
+                self.pos_label.config(text=f"Position: X={pos[0]:.2f} Y={pos[1]:.2f} Z={pos[2]:.2f}")
             except PrinterConnectionError:
                 self.conn_status.config(text="Status: Verbindung verloren")
                 self.connection = None
@@ -199,15 +222,34 @@ class PlotterApp(tk.Tk):
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="1. Drucker")
 
-        ttk.Label(tab, text="Verfügbare Drucker (OrcaSlicer-Import oder Liste)").pack(pady=5)
-        self.printer_list = tk.Listbox(tab, height=8)
+        ttk.Label(tab, text=f"Verfügbare Drucker ({len(self.printers)} Modelle aus OrcaSlicer)").pack(pady=5)
+
+        search_frame = ttk.Frame(tab)
+        search_frame.pack(fill="x", padx=20)
+        ttk.Label(search_frame, text="Suchen:").pack(side="left", padx=(0, 4))
+        self.printer_search = tk.StringVar()
+        self.printer_search.trace_add("write", lambda *_: self._filter_printers())
+        search_entry = ttk.Entry(search_frame, textvariable=self.printer_search)
+        search_entry.pack(side="left", fill="x", expand=True)
+
+        self.printer_list = tk.Listbox(tab, height=10)
         self.printer_list.pack(fill="x", padx=20, pady=5)
         for p in self.printers:
             self.printer_list.insert("end", f"{p['name']} — Bett {p['bed_x']}x{p['bed_y']}x{p['bed_z']} mm")
         self.printer_list.bind("<Double-1>", self._select_printer)
+        search_entry.focus_set()
 
         ttk.Button(tab, text="OrcaSlicer-Profil importieren (.json)", command=self._import_profile).pack(pady=5)
         ttk.Label(tab, text="Profil aus OrcaSlicer: Hilfe → Profilkurator → Export").pack(pady=2)
+
+    def _filter_printers(self):
+        """Filtert die Druckerliste anhand des Suchfelds (Name oder Hersteller)."""
+        query = self.printer_search.get().strip().lower()
+        self.printer_list.delete(0, "end")
+        for p in self.printers:
+            if query and query not in p["name"].lower() and query not in p.get("vendor", "").lower():
+                continue
+            self.printer_list.insert("end", f"{p['name']} — Bett {p['bed_x']}x{p['bed_y']}x{p['bed_z']} mm")
 
     def _select_printer(self, _event=None):
         sel = self.printer_list.curselection()
@@ -245,6 +287,10 @@ class PlotterApp(tk.Tk):
         ttk.Label(form, text="Y (mm):").grid(row=0, column=1 + 0)
         self.cal_y = ttk.Entry(form, width=10)
         self.cal_y.grid(row=0, column=2, padx=5)
+        ttk.Label(form, text="Z-Höhe (mm):").grid(row=0, column=3, padx=5)
+        self.cal_z = ttk.Entry(form, width=10)
+        self.cal_z.grid(row=0, column=4, padx=5)
+
 
         ttk.Button(tab, text="Ecke übernehmen", command=self._add_corner).pack(pady=3)
         ttk.Button(tab, text="Letzte Ecke löschen", command=self._pop_corner).pack(pady=3)
@@ -297,10 +343,11 @@ class PlotterApp(tk.Tk):
         try:
             x = float(self.cal_x.get())
             y = float(self.cal_y.get())
+            z = float(self.cal_z.get()) if self.cal_z.get().strip() else None
         except ValueError:
-            messagebox.showerror("Fehler", "Bitte X und Y als Zahl eingeben (Stift dort positionieren, Wert ablesen).")
+            messagebox.showerror("Fehler", "Bitte X und Y (und optional Z) als Zahl eingeben.")
             return
-        self.calibration.add_point(x, y)
+        self.calibration.add_point(x, y, z)
         self._refresh_corners()
 
     def _pop_corner(self):
@@ -314,7 +361,9 @@ class PlotterApp(tk.Tk):
     def _refresh_corners(self):
         self.corner_list.delete(0, "end")
         for i, (x, y) in enumerate(self.calibration.points, 1):
-            self.corner_list.insert("end", f"Ecke {i}: X={x:.2f}  Y={y:.2f}")
+            z = self.calibration.heights[i - 1] if i <= len(self.calibration.heights) else None
+            ztxt = f"  Z={z:.2f}" if z is not None else ""
+            self.corner_list.insert("end", f"Ecke {i}: X={x:.2f}  Y={y:.2f}{ztxt}")
         status = f"Status: {len(self.calibration.points)} Ecken"
         if self.calibration.is_complete:
             status += " — kalibriert ✓"

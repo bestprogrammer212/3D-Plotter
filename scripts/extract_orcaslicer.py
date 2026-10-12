@@ -50,21 +50,27 @@ def main():
         models = vdata.get("machine_model_list") or []
         for model in models:
             sub = model.get("sub_path", "")
-            base = sub.split("/")[-1].replace(".json", "")
-            nozzle_file = f"{base} 0.4 nozzle.json"
-            candidate = os.path.join(machine_dir, nozzle_file)
-            if not os.path.exists(candidate):
-                continue
-            try:
-                with open(candidate, encoding="utf-8") as f:
-                    mdata = json.load(f)
-            except Exception:
+            # sub_path kann Unterverzeichnisse enthalten, z. B. "machine/EN4SERIES/..."
+            rel = sub[len("machine/"):] if sub.startswith("machine/") else sub
+            stem = rel[:-len(".json")] if rel.endswith(".json") else rel
+            machine_file = os.path.join(machine_dir, *stem.split("/")) + ".json"
+            nozzle_file = os.path.join(machine_dir, *(stem.split("/")[:-1] + [f"{stem.split('/')[-1]} 0.4 nozzle"])) + ".json"
+            mdata = None
+            for candidate in (nozzle_file, machine_file):
+                if os.path.exists(candidate):
+                    try:
+                        with open(candidate, encoding="utf-8") as f:
+                            mdata = json.load(f)
+                            break
+                    except Exception:
+                        continue
+            if not mdata:
                 continue
             w, h = parse_area(mdata.get("printable_area", ""))
             if not w:
                 continue
             printers.append({
-                "name": model.get("name", base),
+                "name": model.get("name", stem.split("/")[-1]),
                 "vendor": vendor,
                 "model_id": model.get("model_id", ""),
                 "bed_x": w,
