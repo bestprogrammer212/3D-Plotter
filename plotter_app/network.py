@@ -35,8 +35,8 @@ class PrinterConnection:
         except urllib.error.HTTPError as e:
             raise PrinterConnectionError(
                 f"HTTP {e.code} von {url} – {e.reason}. "
-                f"Tipp: IP/Port prüfen (Moonraker meist http://IP:7125, "
-                f"OctoPrint http://IP) und API-Key korrekt?") from e
+                f"Tipp: IP prüfen (ggf. mit Port angeben, z. B. 192.168.1.50:7125) "
+                "und API-Key korrekt?") from e
         except (urllib.error.URLError, OSError) as e:
             raise PrinterConnectionError(
                 f"Netzwerkfehler ({self.host}): {e}. "
@@ -44,11 +44,11 @@ class PrinterConnection:
 
 
 class MoonrakerConnection(PrinterConnection):
-    """Klipper über Moonraker (z. B. Fluidd/Mainsail), Standard-Port 7125."""
+    """Klipper über Moonraker (z. B. Fluidd/Mainsail-Reverse-Proxy auf Standard-Port)."""
 
     def __init__(self, host, api_key="", timeout=5):
         if "://" not in host:
-            host = f"http://{host}:7125"
+            host = f"http://{host}"
         super().__init__(host, api_key, timeout)
 
     def _headers(self):
