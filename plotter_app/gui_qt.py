@@ -61,11 +61,20 @@ _RELAY = None
 
 
 def on_main_thread(fn):
-    """Fuehrt fn im GUI-Thread aus (thread-sicher aus jedem Thread)."""
+    """Fuehrt fn im GUI-Thread aus (thread-sicher aus jedem Thread).
+
+    Das Relay MUSS vorher im GUI-Thread initialisiert worden sein
+    (init_main_thread_relay in PlotterWindow.__init__ / main()) – ein
+    QObject darf nicht aus dem Netzwerk-Thread erzeugt werden.
+    """
+    _RELAY.call.emit(fn)
+
+
+def init_main_thread_relay():
+    """Relay im GUI-Thread anlegen (vor jedem Thread-Start aufrufen)."""
     global _RELAY
     if _RELAY is None:
         _RELAY = _MainThreadRelay()
-    _RELAY.call.emit(fn)
 
 
 class PaperCanvas(QtWidgets.QWidget):
@@ -448,6 +457,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         super().__init__()
+        init_main_thread_relay()  # QObject muss im GUI-Thread erzeugt werden
         self.setWindowTitle("3D-Plotter")
         self.resize(1180, 760)
         self.calibration = Calibration()
@@ -1251,6 +1261,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
 def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(DARK)
+    init_main_thread_relay()  # falls PlotterWindow woanders erzeugt wird
     win = PlotterWindow()
     win.show()
     sys.exit(app.exec())
