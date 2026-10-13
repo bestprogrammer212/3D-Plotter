@@ -365,53 +365,80 @@ def text_paths(text, x, y, size=0.1):
     return paths
 
 
-def trace_image(filename, resolution=64, threshold=128, paper_w=1.0, paper_h=1.0):
-    """Raster-Zeilen-Tracing eines Bildes in Plotter-Pfade (ohne externe Abhängigkeiten).
+def _image_to_paper_fit(w, h, paper_w, paper_h):
+    """Bildgroesse (Pixel) -> Zeichen-Box in mm: Seitenverhaeltnis bleibt
+    erhalten, das Bild wird in das Papier eingepasst und zentriert.
+    Liefert (offset_x, offset_y, box_w, box_h) in mm."""
+    s = min(paper_w / w, paper_h / h)
+    box_w, box_h = w * s, h * s
+    return (paper_w - box_w) / 2, (paper_h - box_h) / 2, box_w, box_h
 
-    Lädt mit tkinter.PhotoImage (PNG/GIF) oder PIL, falls installiert.
+
+def _pixel_path_to_paper(pts, w, h, paper_w, paper_h):
+    """Pixel-Kontur -> Papier-Koordinaten (0..1), seitenverhaeltnis-getreu,
+    zentriert; Bild-y (oben=0) wird zu Papier-y (unten=0) invertiert."""
+    ox, oy, bw_, bh_ = _image_to_paper_fit(w, h, paper_w, paper_h)
+    out = []
+    for (x, y) in pts:
+        u = (ox + (x / w) * bw_) / paper_w
+        v = 1.0 - (oy + (y / h) * bh_) / paper_h
+        if not out or (abs(u - out[-1][0]) > 1e-9 or abs(v - out[-1][1]) > 1e-9):
+            out.append((u, v))
+    return out
+
+
+def _load_image_filtered(filename, resolution, mode):
+    """Bild laden, verkleinern (LANCZOS) und um Rauschen bereinigen
+    (Median-Filter): sauberere Farb- bzw. Graustufen-Grenzen fuer den Tracer."""
+    from PIL import Image, ImageFilter
+    img = Image.open(filename).convert(mode)
+    scale = min(1.0, resolution * 2 / max(img.width, img.height))
+    if scale < 1.0:
+        img = img.resize((max(1, int(img.width * scale)),
+                          max(1, int(img.height * scale))), Image.LANCZOS)
+    if min(img.width, img.height) >= 8:
+        img = img.filter(ImageFilter.MedianFilter(size=3))
+    return img
+
+
+def trace_image(filename, resolution=96, threshold=128, paper_w=1.0, paper_h=1.0,
+                min_area=0.0004):
+    """Kontur-Tracing eines Bildes (schwarz/weiss) in Plotter-Pfade.
+
+    Dunkle Bereiche werden als MASKE betrachtet und ihre Umrisse per
+    Marching-Squares-Konturverfolgung nachverfolgt -> wenige, saubere,
+    geschlossene Pfade statt Scan-Zeilen. Seitenverhaeltnis bleibt erhalten.
     """
     try:
-        from PIL import Image, ImageOps
+        from PIL import Image
     except ImportError:
         raise RuntimeError("Für Bild-Tracing bitte 'pip install pillow' ausführen.")
 
-    img = Image.open(filename).convert("L")
-    img = img.resize((resolution, max(1, int(resolution * img.height / img.width))))
+    img = _load_image_filtered(filename, resolution, "L")
     px = img.load()
     w, h = img.size
-
+    mask = [px[x, y] < threshold for y in range(h) for x in range(w)]
     paths = []
-    # Horizontale Scan-Linien: Dunkle Runnen als Segmente
-    for y in range(h):
-        run = None
-        row_paths = []
-        for x in range(w + 1):
-            dark = x < w and px[x, y] < threshold
-            if dark and run is None:
-                run = x
-            elif not dark and run is not None:
-                row_paths.append((run, x))
-                run = None
-        for (x0, x1) in row_paths:
-            if x1 - x0 < 1:
-                continue
-            sx = (x0 / w) * paper_w
-            ex = (x1 / w) * paper_w
-            sy = (y / h) * paper_h
-            paths.append([(sx, sy), (ex, sy)])
-    # Vertikale Kanten andeuten: einfache Kontur-Spur links/rechts
+    for contour in _trace_mask_paths(mask, w, h):
+        if len(contour) < 4:
+            continue
+        pts = _pixel_path_to_paper(contour, w, h, paper_w, paper_h)
+        if len(pts) >= 4 and _contour_area(pts) >= min_area:
+            simp = simplify(pts, 0.003)
+            if len(simp) >= 4:
+                paths.append(smooth_curve(simp, iterations=3))
     return paths
 
 
-def _trace_mask_paths(mask, w, h, paper_w, paper_h, min_area=3):
-    """Konturen einer binären Maske als geschlossene Polygone.
+def _trace_mask_paths(mask, w, h):
+    """Konturen einer binaeren Maske als geschlossene Polygone (Pixel-Koordinaten).
 
     Marching-Squares-Konturverfolgung: liefert UMRISSE statt Scan-Zeilen
     -> wenige, saubere, geschlossene Pfade (wie ein Vektorisierer).
+    An Kreuzungen (diagonal beruehrende Pixel) wird die Kante gewaehlt, die
+    am staerksten rechts abbiegt -> die Kontur bleibt auf derselben Form,
+    statt beliebig auf eine andere Region zu springen.
     """
-    visited = set()
-    paths = []
-    # Innenpixel mit Nachbar-Ausenpixel = Konturkandidaten
     def is_set(x, y):
         return 0 <= x < w and 0 <= y < h and mask[y * w + x]
 
@@ -439,16 +466,25 @@ def _trace_mask_paths(mask, w, h, paper_w, paper_h, min_area=3):
                 for a, b in edge_segments(x, y):
                     all_edges.setdefault(a, []).append(b)
 
+    paths = []
     while all_edges:
-        # neue Kontur starten
         start = next(iter(all_edges))
         contour = [start]
-        cur = start
+        cur, prev = start, None
         while True:
             nxts = all_edges.get(cur, [])
             if not nxts:
                 break
-            nxt = nxts.pop(0)
+            if len(nxts) == 1 or prev is None:
+                nxt = nxts.pop(0)
+            else:
+                # Kreuzung: Kante mit dem staerksten Rechts-Knick nehmen
+                dx, dy = cur[0] - prev[0], cur[1] - prev[1]
+                def turn_rank(nb):
+                    cx, cy = nb[0] - cur[0], nb[1] - cur[1]
+                    return (-(dx * cy - dy * cx), -(dx * cx + dy * cy))
+                best = min(range(len(nxts)), key=lambda k: turn_rank(nxts[k]))
+                nxt = nxts.pop(best)
             if not nxts:
                 del all_edges[cur]
             rev = all_edges.get(nxt, [])
@@ -456,19 +492,12 @@ def _trace_mask_paths(mask, w, h, paper_w, paper_h, min_area=3):
                 rev.remove(cur)
                 if not rev:
                     del all_edges[nxt]
-            contour.append(nxt)
-            cur = nxt
-            if cur == start or nxt == start:
+            prev, cur = cur, nxt
+            if cur == start:
                 break
+            contour.append(cur)
         if len(contour) >= 4:
-            pts = []
-            for (x, y) in contour:
-                px_ = (x / w) * paper_w
-                py_ = (1 - y / h) * paper_h  # Bild-y invertieren
-                if not pts or (abs(px_ - pts[-1][0]) > 1e-9 or abs(py_ - pts[-1][1]) > 1e-9):
-                    pts.append((px_, py_))
-            if len(pts) >= 4:
-                paths.append(pts)
+            paths.append(contour)
     return paths
 
 
@@ -502,11 +531,7 @@ def trace_image_colored(filename, resolution=96, max_colors=6,
     except ImportError:
         raise RuntimeError("Für Bild-Tracing bitte 'pip install pillow' ausführen.")
 
-    img = Image.open(filename).convert("RGB")
-    scale = min(1.0, resolution * 2 / max(img.width, img.height))
-    if scale < 1.0:
-        img = img.resize((max(1, int(img.width * scale)),
-                          max(1, int(img.height * scale))), Image.LANCZOS)
+    img = _load_image_filtered(filename, resolution, "RGB")
     quant = img.quantize(colors=max_colors, dither=Image.Dither.NONE)
     pal = quant.getpalette()[:max_colors * 3]
     px = quant.load()
@@ -555,11 +580,12 @@ def trace_image_colored(filename, resolution=96, max_colors=6,
         if not any(mask):
             done.add(target)
             continue
-        contours = _trace_mask_paths(mask, w, h, paper_w, paper_h)
+        contours = _trace_mask_paths(mask, w, h)
         kept = 0
         for c in contours:
-            if len(c) >= 4 and _contour_area(c) >= min_area:
-                simp = simplify(c, 0.003)
+            pts = _pixel_path_to_paper(c, w, h, paper_w, paper_h)
+            if len(pts) >= 4 and _contour_area(pts) >= min_area:
+                simp = simplify(pts, 0.003)
                 if len(simp) >= 4:
                     # kurvig glaetten: Chaikin rundet die Pixel-Kanten
                     simp = smooth_curve(simp, iterations=3)

@@ -272,10 +272,11 @@ class DesignCanvas(QtWidgets.QWidget):
                 self.app.selected = group_idxs
             idxs = sorted(self.app.selected) or [idx]
             self._drag = (idxs, pt[0], pt[1],
-                          {i: list(self.app.paths[i]) for i in idxs})
+                          {i: list(self.app.paths[i]) for i in idxs}, None, None)
             self.setCursor(QtCore.Qt.ClosedHandCursor)
         else:
             self.app.selected.clear()
+        self._selection_changed()
         self.update()
 
     def mouseMoveEvent(self, e):
@@ -296,11 +297,25 @@ class DesignCanvas(QtWidgets.QWidget):
         pt = self._paper_pos(e)
         if pt is None:
             return
-        idxs, sx, sy, backups = self._drag
-        dx, dy = pt[0] - sx, pt[1] - sy
+        idxs, sx, sy, backups, first, _last = self._drag
+        if first is None:
+            first = pt
+        self._drag = (idxs, sx, sy, backups, first, pt)
+        # Gesamt-Shift = Drag-Start bis jetzt, auf dem Papier begrenzt
+        tot_dx = first[0] - sx
+        tot_dy = first[1] - sy
+        ndx, ndy = pt[0] - first[0], pt[1] - first[1]
+        min_x = min(x for i in idxs for (x, _y) in backups[i])
+        max_x = max(x for i in idxs for (x, _y) in backups[i])
+        min_y = min(y for i in idxs for (_x, y) in backups[i])
+        max_y = max(y for i in idxs for (_x, y) in backups[i])
+        lo_x, hi_x = -min_x - tot_dx, 1.0 - max_x - tot_dx
+        lo_y, hi_y = -min_y - tot_dy, 1.0 - max_y - tot_dy
+        ndx = min(max(ndx, lo_x), hi_x)
+        ndy = min(max(ndy, lo_y), hi_y)
         for i in idxs:
-            self.app.paths[i] = [(min(1.0, max(0.0, x + dx)),
-                                  min(1.0, max(0.0, y + dy))) for (x, y) in backups[i]]
+            self.app.paths[i] = [(x + tot_dx + ndx, y + tot_dy + ndy)
+                                 for (x, y) in backups[i]]
         self.update()
 
     def _update_lasso_selection(self):
@@ -1224,34 +1239,42 @@ class PlotterWindow(QtWidgets.QMainWindow):
             self, "Bild öffnen", "", "Bilder (*.png *.jpg *.jpeg *.bmp)")
         if not path:
             return
-        dlg = QtWidgets.QDialog(self)
-        dlg.setWindowTitle("Bild tracer")
-        form = QtWidgets.QVBoxLayout(dlg)
-        farbig = QtWidgets.QCheckBox("Farbig traceren (eine Farbe je Bild-Farbe, mit Farbwechsel-Pausen)")
-        farbig.setChecked(True)
-        form.addWidget(farbig)
-        box = QtWidgets.QGroupBox("Füllung / Gravur (nur farbig)")
-        bf = QtWidgets.QGridLayout(box)
-        fill_combo = QtWidgets.QComboBox()
-        fill_combo.addItems(["Nur Kontur", "Linien-Füllung", "Kreuz-Füllung", "Zickzack (ein Linig)"])
-        bf.addWidget(QtWidgets.QLabel("Modus:"), 0, 0)
-        bf.addWidget(fill_combo, 0, 1)
-        spacing_spin = self._dspin(0.01, 0.3, 0.05, 0.01)
-        bf.addWidget(QtWidgets.QLabel("Linien-Abstand:"), 1, 0)
-        bf.addWidget(spacing_spin, 1, 1)
-        form.addWidget(box)
-        btns = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        btns.accepted.connect(dlg.accept)
-        btns.rejected.connect(dlg.reject)
-        form.addWidget(btns)
-        if dlg.exec() != QtWidgets.QDialog.Accepted:
-            return
-        fill_modes = {0: None, 1: "lines", 2: "cross", 3: "zigzag"}
-        fill_mode = fill_modes[fill_combo.currentIndex()] if farbig.isChecked() else None
-        spacing = spacing_spin.value()
+        # Beim Einfuegen fragen: Multicolor oder eine Farbe?
+        multi = QtWidgets.QMessageBox.question(
+            self, "Multicolor",
+            " Soll das Bild MULTICOLOR getraced werden?\n\n"
+            "Ja = eine Farbe je Bild-Farbe (mit Farbwechsel-Pausen beim Plotten)\n"
+            "Nein = nur Konturen in einer Farbe",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        farbig = multi == QtWidgets.QMessageBox.Yes
+        fill_mode = None
+        spacing = 0.05
+        if farbig:
+            dlg = QtWidgets.QDialog(self)
+            dlg.setWindowTitle("Füllung / Gravur")
+            form = QtWidgets.QVBoxLayout(dlg)
+            box = QtWidgets.QGroupBox("Modus")
+            bf = QtWidgets.QGridLayout(box)
+            fill_combo = QtWidgets.QComboBox()
+            fill_combo.addItems(["Nur Kontur", "Linien-Füllung", "Kreuz-Füllung", "Zickzack (ein Linig)"])
+            bf.addWidget(QtWidgets.QLabel("Modus:"), 0, 0)
+            bf.addWidget(fill_combo, 0, 1)
+            spacing_spin = self._dspin(0.01, 0.3, 0.05, 0.01)
+            bf.addWidget(QtWidgets.QLabel("Linien-Abstand:"), 1, 0)
+            bf.addWidget(spacing_spin, 1, 1)
+            form.addWidget(box)
+            btns = QtWidgets.QDialogButtonBox(
+                QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+            btns.accepted.connect(dlg.accept)
+            btns.rejected.connect(dlg.reject)
+            form.addWidget(btns)
+            if dlg.exec() != QtWidgets.QDialog.Accepted:
+                return
+            fill_modes = {0: None, 1: "lines", 2: "cross", 3: "zigzag"}
+            fill_mode = fill_modes[fill_combo.currentIndex()]
+            spacing = spacing_spin.value()
         try:
-            if farbig.isChecked():
+            if farbig:
                 paths, colors = tools.trace_image_colored(
                     path, resolution=128, fill_mode=fill_mode, fill_spacing=spacing)
                 if not paths:
@@ -1259,7 +1282,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                     return
                 self._add_paths(paths, colors=colors)
             else:
-                paths = tools.trace_image(path, resolution=64)
+                paths = tools.trace_image(path, resolution=96)
                 if not paths:
                     QtWidgets.QMessageBox.warning(self, "Bild tracer", "Keine dunklen Bereiche gefunden.")
                     return
