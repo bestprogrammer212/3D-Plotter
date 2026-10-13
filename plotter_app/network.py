@@ -1,7 +1,9 @@
 """Netzwerk-Anbindung: Kalibrieren und Plotten über IP (Moonraker/Klipper und OctoPrint)."""
+import io
 import json
 import re
 import urllib.error
+import uuid
 import urllib.parse
 import urllib.request
 
@@ -103,9 +105,12 @@ class MoonrakerConnection(PrinterConnection):
         self.home("Z")
 
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
-        """G-Code hochladen und Druck sofort starten."""
-        import io
-        import uuid
+        """G-Code hochladen und Druck EXPLIZIT starten.
+
+        Das 'print=true'-Flag beim Upload wird von Moonraker je Konfiguration
+        ignoriert oder nur in die Job-Queue gelegt. Robust ist der explizite
+        Start: POST /printer/print/start {"filename": ...}.
+        """
         filename = sanitize_filename(filename)
         boundary = uuid.uuid4().hex
         body = io.BytesIO()
@@ -115,7 +120,7 @@ class MoonrakerConnection(PrinterConnection):
         body.write(gcode_text.encode())
         body.write(f"\r\n--{boundary}--\r\n".encode())
         req = urllib.request.Request(
-            self._url(f"/server/files/upload?root=gcodes&print=true"),
+            self._url("/server/files/upload?root=gcodes"),
             data=body.getvalue(), method="POST")
         req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
         if self.api_key:
@@ -125,6 +130,9 @@ class MoonrakerConnection(PrinterConnection):
                 resp.read()
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
+        # Druck jetzt explizit starten (Datei liegt im gcodes-Root)
+        self._request("POST", "/printer/print/start",
+                      {"filename": filename}, headers=self._headers())
 
     def emergency_stop(self):
         """Sofort-Notaus (direkt, nicht über die G-Code-Warteschlange)."""

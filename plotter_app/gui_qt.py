@@ -43,6 +43,31 @@ QStatusBar { background: #26272b; color: #9aa0aa; }
 """
 
 
+class _MainThreadRelay(QtCore.QObject):
+    """Signal-Relay: Signale aus beliebigem Thread werden (queued) im
+    GUI-Thread ausgefuehrt. QTimer.singleShot funktioniert NICHT aus dem
+    Queue-/Netzwerk-Thread (kein Qt-Event-Loop dort)."""
+    call = QtCore.Signal(object)
+
+    def __init__(self):
+        super().__init__()
+        self.call.connect(self._run_call)
+
+    def _run_call(self, fn):
+        fn()
+
+
+_RELAY = None
+
+
+def on_main_thread(fn):
+    """Fuehrt fn im GUI-Thread aus (thread-sicher aus jedem Thread)."""
+    global _RELAY
+    if _RELAY is None:
+        _RELAY = _MainThreadRelay()
+    _RELAY.call.emit(fn)
+
+
 class PaperCanvas(QtWidgets.QWidget):
     """Canvas mit Papier, Design-Pfaden und (optional) Stift-Position."""
 
@@ -761,7 +786,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                         "Laufender Druck wird abgebrochen, fortfahren?") != QtWidgets.QMessageBox.Yes:
                     return
                 self._start_ip_plot()
-            QtCore.QTimer.singleShot(0, apply)
+            on_main_thread(apply)
         self.connection.is_printing(printing_cb)
 
     def _start_ip_plot(self):
@@ -778,7 +803,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                     QtWidgets.QMessageBox.critical(self, "Netzwerkfehler", err)
                 else:
                     self.statusBar().showMessage("Plot gestartet", 5000)
-            QtCore.QTimer.singleShot(0, apply)
+            on_main_thread(apply)
         self.connection.upload_and_start(gcode, filename=filename, callback=cb)
 
     def _validate_for_export(self):
@@ -796,7 +821,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         def apply():
             self.conn_label.setText(text)
             self.conn_label.setStyleSheet("color:#66bb6a;" if ok else "color:#ef5350;")
-        QtCore.QTimer.singleShot(0, apply)
+        on_main_thread(apply)
 
     def _connect(self):
         kind = "moonraker" if self.kind_combo.currentIndex() == 0 else "octoprint"
@@ -810,8 +835,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
             kind, host, self.key_edit.text().strip(), on_status=self._on_conn_status)
         self.connection.start()
         self.connection.request_position(
-            lambda pos, err: QtCore.QTimer.singleShot(
-                0, lambda: self._pos_cb(pos, err)))
+            lambda pos, err: on_main_thread(lambda: self._pos_cb(pos, err)))
 
     def _pos_cb(self, pos, err):
         if err:
@@ -840,7 +864,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                     self.cal_y.setValue(pos[1])
                     if pos[2] is not None:
                         self.cal_z.setValue(pos[2])
-                QtCore.QTimer.singleShot(0, apply)
+                on_main_thread(apply)
         self.connection.request_position(cb)
 
     def _show_pos(self, pos):
@@ -880,7 +904,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                 else:
                     self.conn_label.setText("NOTAUS ausgelöst!")
                     self.conn_label.setStyleSheet("color:#ef5350;")
-            QtCore.QTimer.singleShot(0, apply)
+            on_main_thread(apply)
         self.connection.emergency_stop(callback=cb)
 
     def _install_jog_shortcuts(self):
@@ -945,7 +969,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                 interval = 350 if getattr(self, "_hold_timer", None) else 1000
                 def cb(pos, err):
                     if pos:
-                        QtCore.QTimer.singleShot(0, lambda: self._show_pos(pos))
+                        on_main_thread(lambda: self._show_pos(pos))
                 self.connection.request_position(cb)
             else:
                 interval = 1000

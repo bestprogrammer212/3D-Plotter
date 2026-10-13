@@ -121,6 +121,45 @@ class TestNetwork(unittest.TestCase):
         finally:
             srv.shutdown()
 
+    def test_moonraker_upload_starts_print(self):
+        """Nach dem Upload wird der Druck EXPLIZIT gestartet
+        (POST /printer/print/start), nicht nur hochgeladen."""
+        requests_seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def _read_and_respond(self, body_obj):
+                length = int(self.headers.get("Content-Length", 0))
+                data = self.rfile.read(length)
+                requests_seen.append((self.command, self.path, data))
+                body = json.dumps(body_obj).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_POST(self):
+                if "upload" in self.path:
+                    self._read_and_respond({"result": {"item": {"path": "plot.gcode"}}})
+                else:
+                    self._read_and_respond({"result": "ok"})
+
+            def log_message(self, *_):
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            conn = MoonrakerConnection(f"http://127.0.0.1:{srv.server_address[1]}")
+            conn.upload_and_start("G28\n", "plot_20250101_120000.gcode")
+            paths = [r[1] for r in requests_seen]
+            self.assertTrue(any("upload" in p for p in paths))
+            self.assertIn("/printer/print/start", paths)
+            start_body = next(json.loads(r[2]) for r in requests_seen
+                               if r[1] == "/printer/print/start")
+            self.assertEqual(start_body["filename"], "plot_20250101_120000.gcode")
+        finally:
+            srv.shutdown()
+
     def test_octoprint_get_position_three_tuple(self):
         """OctoPrint liefert IMMER ein 3-Tupel (z=None wenn unbekannt)."""
         class Handler(http.server.BaseHTTPRequestHandler):
