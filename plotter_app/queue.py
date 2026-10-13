@@ -213,6 +213,15 @@ class QueuedConnection:
         send_next()
         state["advance"] = send_next
 
+    def _send_now_safe(self, script):
+        """G-Code SOFORT und ohne Queue senden – crasht nie: Verbindungs-
+        oder Serverfehler werden geschluckt (GUI bleibt stabil)."""
+        try:
+            conn = self._get_conn()
+            conn.send_script(script)
+        except Exception:
+            pass
+
     def pause_plot(self):
         """SOFORT-Pause: laufende Bewegung anhalten (Klipper: PAUSE + Stift hoch,
        _octoprint: aktuelles G-Code abbrechen) und keine weiteren Gruppen senden.
@@ -220,17 +229,9 @@ class QueuedConnection:
         st = getattr(self, "_plot_state", None)
         if st and not st["done"]:
             st["paused"] = True
-        try:
-            conn = self._get_conn()
-            # Bewegung SOFORT anhalten + Stift anheben (beide APIs)
-            conn.send_script("PAUSE")
-        except PrinterConnectionError:
-            pass
-        try:
-            conn = self._get_conn()
-            conn.send_script("G91\nG1 Z5\nG90")
-        except PrinterConnectionError:
-            pass
+        # Bewegung SOFORT anhalten + Stift anheben (beide APIs)
+        self._send_now_safe("PAUSE")
+        self._send_now_safe("G91\nG1 Z5\nG90")
 
     def resume_plot(self):
         """Pause/Farbwechsel bestaetigt: weiterplotten."""
@@ -239,12 +240,13 @@ class QueuedConnection:
             st["paused"] = False
             if st["i"] < len(st["items"]) and isinstance(st["items"][st["i"]], tuple):
                 st["i"] += 1  # Farbwechsel-Marker verwerfen
+            # RESUME schadet nicht, wenn gar nicht pausiert war (Klipper
+            # ignoriert es dann); verhindert haengende Pause-Reste.
+            self._send_now_safe("RESUME")
             try:
-                conn = self._get_conn()
-                conn.send_script("RESUME")
-            except PrinterConnectionError:
+                st["advance"]()
+            except Exception:
                 pass
-            st["advance"]()
 
     def stop_plot(self):
         """Plot ABBRECHEN: Bewegung sofort stoppen, Stift hoch, alles verwerfen."""
@@ -252,16 +254,13 @@ class QueuedConnection:
         if st:
             st["stopped"] = True
             st["paused"] = False
+        self._send_now_safe("CANCEL_PRINT")
         try:
             conn = self._get_conn()
             conn.cancel_print()
-        except PrinterConnectionError:
+        except Exception:
             pass
-        try:
-            conn = self._get_conn()
-            conn.send_script("G91\nG1 Z10\nG90")
-        except PrinterConnectionError:
-            pass
+        self._send_now_safe("G91\nG1 Z10\nG90")
         self._queue = queue.Queue()  # wartende Befehle verwerfen
         if st and not st["done"]:
             st["done"] = True
