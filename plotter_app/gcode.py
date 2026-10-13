@@ -3,7 +3,19 @@ from .calibration import Calibration
 from .pen import PenSettings
 
 
-def export_gcode(paths, calibration: Calibration, pen: PenSettings, header_comment="Plotter Job"):
+def _pen_target(calibration, pen, px, py):
+    """Papier-Koordinate -> Maschinen-Ziel, verschoben um den Stift-X/Y-Offset.
+
+    Der Stift sitzt auf Nozzle-Ebene, kann aber daneben montiert sein:
+    die Nozzle muss um den Offset versetzt fahren, damit die STIFTSPITZE
+    am kalibrierten Papier-Punkt landet.
+    """
+    mx, my = calibration.paper_to_machine(px, py)
+    return (mx - pen.pen_offset_x, my - pen.pen_offset_y)
+
+
+def export_gcode(paths, calibration: Calibration, pen: PenSettings,
+                 header_comment="Plotter Job", home_all=True):
     """paths: Liste von Polylines [(px, py), ...] in Papier-Einheiten 0..1."""
     lines = []
     lines.append(f"; {header_comment}")
@@ -11,25 +23,29 @@ def export_gcode(paths, calibration: Calibration, pen: PenSettings, header_comme
     lines.append(f"; Ecken: {len(calibration.points)}")
     lines.append("G90 ; absolute coordinates")
     lines.append("G21 ; mm")
-    lines.append("G28 ; home all axes (Stift-Bezug sicherstellen)")
+    # G28 homed auch Z – das ist nur sicher, wenn der montierte Stift
+    # mindestens so hoch wie die Nozzle ist (sonst Crash beim Z-Homen!).
+    # Mit home_all=False wird nur X/Y gehomed.
+    if home_all:
+        lines.append("G28 ; home all axes (Stift-Bezug sicherstellen, Stift >= Noessel-Hoehe noetig)")
+    else:
+        lines.append("G28 X Y ; home nur X/Y (Z unberuehrt, z. B. wenn Stift unter Nozzle sitzt)")
     lines.append("M107 ; fans off")
-
-    first = True
     for path in paths:
         if len(path) < 2:
             continue
-        # Stift anheben, zum Start bewegen
-        lines.extend(pen.up_gcode() if first else pen.lift_gcode())
-        first = False
-        sx, sy = calibration.paper_to_machine(path[0][0], path[0][1])
+        # Verfahren zwischen Pfaden IMMER mit vollem pen_up_z (kein 1-mm-Hub,
+        # der ueber unebenes Papier schleifen wuerde).
+        lines.extend(pen.up_gcode())
+        sx, sy = _pen_target(calibration, pen, path[0][0], path[0][1])
         lines.append(f"G0 X{sx:.2f} Y{sy:.2f} F{pen.travel_speed * 60:.0f}")
         lines.extend(pen.down_gcode())
         for (px, py) in path[1:]:
-            mx, my = calibration.paper_to_machine(px, py)
+            mx, my = _pen_target(calibration, pen, px, py)
             lines.append(f"G1 X{mx:.2f} Y{my:.2f} F{pen.draw_speed * 60:.0f}")
-
     lines.extend(pen.up_gcode())
-    lines.append("G28 X Y ; home after plot" if False else "; done")
+    lines.append("G0 X0 Y0 ; Parkposition")
+    lines.append("; done")
     lines.append("M84 ; motors off")
     return "\n".join(lines) + "\n"
 

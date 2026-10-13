@@ -27,13 +27,16 @@ class QueuedConnection:
         self.on_status = on_status or (lambda text, ok: None)
         self._queue = queue.Queue()
         self._pos_cache = (0.0, 0.0, 0.0)
+        self._conn = None
         self._connected = False
         self._stop = False
         self._thread = None
         self._lock = threading.Lock()
-        self._connect()
+        # KEIN Verbindungsaufbau im Konstruktor (blockiert sonst die GUI
+        # bis zu 15 s); der _run-Thread verbindet beim ersten Durchlauf.
 
     # ---------- Aufbau / Reconnect ----------
+
     def _make_connection(self):
         if self.kind == "moonraker":
             return MoonrakerConnection(self.host, self.api_key)
@@ -49,6 +52,7 @@ class QueuedConnection:
             with self._lock:
                 self._conn = conn
                 self._connected = True
+                self._pos_cache = pos
             self.on_status(f"Verbunden mit {self.host} ✓", True)
             return True
         except PrinterConnectionError as e:
@@ -63,17 +67,23 @@ class QueuedConnection:
         self._stop = True
 
     # ---------- Hauptschleife ----------
+
     def _run(self):
+        first_attempt = True
         reconnect_try = 0
         while not self._stop:
             # Erst reconnectieren, wenn die Verbindung weg ist
             if not self.is_connected():
-                reconnect_try += 1
-                delay = RECONNECT_DELAYS[min(reconnect_try - 1, len(RECONNECT_DELAYS) - 1)]
-                self.on_status(f"Reconnect in {delay}s … ({reconnect_try}. Versuch)", False)
-                deadline = time.time() + delay
-                while time.time() < deadline and not self._stop:
-                    time.sleep(0.1)
+                if first_attempt:
+                    # Erster Versuch: sofort ohne Delay
+                    first_attempt = False
+                else:
+                    reconnect_try += 1
+                    delay = RECONNECT_DELAYS[min(reconnect_try - 1, len(RECONNECT_DELAYS) - 1)]
+                    self.on_status(f"Reconnect in {delay}s … ({reconnect_try}. Versuch)", False)
+                    deadline = time.time() + delay
+                    while time.time() < deadline and not self._stop:
+                        time.sleep(0.1)
                 if self._stop:
                     return
                 if self._connect():
@@ -102,8 +112,11 @@ class QueuedConnection:
                 self.on_status(f"Verbindung verloren: {e}", False)
                 # Nur idempotente Befehle wiederholen (kein Jog!)
                 if replay:
+                    # Task zurueck in die Queue und KEIN Fehler-Callback:
+                    # der Callback feuert erst nach erfolgreicher Ausfuehrung,
+                    # sonst erhielte der Aufrufer Fehler UND Erfolg.
                     self._queue.put(task)
-                if callback:
+                elif callback:
                     callback(None, str(e))
 
     def _get_conn(self):
@@ -117,6 +130,7 @@ class QueuedConnection:
             return self._connected
 
     # ---------- Öffentliche API (nicht blockierend) ----------
+
     def _submit(self, action, *args, callback=None, replay=True, **kwargs):
         self._queue.put((action, args, kwargs, callback, replay))
 
@@ -156,6 +170,10 @@ class QueuedConnection:
                 if callback:
                     callback(None, str(e))
         threading.Thread(target=work, daemon=True).start()
+
+    def is_printing(self, callback):
+        """Asynchron pruefen, ob gerade ein Druck laeuft (kein GUI-Block)."""
+        self._submit("is_printing", callback=callback, replay=False)
 
     def request_position(self, callback):
         """Position asynchron abfragen; Ergebnis kommt über callback."""

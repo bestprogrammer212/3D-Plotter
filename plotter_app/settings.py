@@ -14,6 +14,8 @@ def save(calibration, pen, printer_name, host, conn_kind):
             "pen_up_z": pen.pen_up_z,
             "pen_draw_z": pen.pen_draw_z,
             "pen_offset_z": pen.pen_offset_z,
+            "pen_offset_x": getattr(pen, "pen_offset_x", 0.0),
+            "pen_offset_y": getattr(pen, "pen_offset_y", 0.0),
             "paper_z": getattr(pen, "paper_z", 0.0),
             "travel_speed": pen.travel_speed,
             "draw_speed": pen.draw_speed,
@@ -51,6 +53,8 @@ def apply_to(data, calibration, pen):
     pen.pen_up_z = p.get("pen_up_z", pen.pen_up_z)
     pen.pen_draw_z = p.get("pen_draw_z", pen.pen_draw_z)
     pen.pen_offset_z = p.get("pen_offset_z", pen.pen_offset_z)
+    pen.pen_offset_x = p.get("pen_offset_x", pen.pen_offset_x)
+    pen.pen_offset_y = p.get("pen_offset_y", pen.pen_offset_y)
     pen.paper_z = p.get("paper_z", 0.0)
     pen.travel_speed = p.get("travel_speed", pen.travel_speed)
     pen.draw_speed = p.get("draw_speed", pen.draw_draw_speed if hasattr(pen, "pen_draw_speed") else pen.draw_speed)

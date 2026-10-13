@@ -11,8 +11,15 @@ class PenSettings:
     z_lift_between_paths: float = 1.0   # kleines Anheben zwischen Pfaden (0 = aus)
     safe_z_margin: float = 5.0          # Freifahrt über Papier hinaus
 
+    # --- Stift-Montage-Offsets (XY) ---
+    # Der Stift wird auf Nozzle-Ebene montiert, kann aber in X/Y versetzt
+    # sitzen: alle Bewegungsziele werden um diesen Offset verschoben.
+    pen_offset_x: float = 0.0
+    pen_offset_y: float = 0.0
+
     # --- Stift-Höhen-Erkennung ---
-    # Der Stift sitzt meist UNTER der Nozzle-Ebene (z. B. mit Klemme montiert).
+    # Der Stift sitzt meist UNTER der Nozzle-Ebene (z. B. mit Klemme montiert)
+    # und kann zusaetzlich in X/Y neben der Nozzle versetzt sein (siehe oben).
     # pen_offset_z = Abstand Stiftspitze <-> Nozzle-Spitze (negativ = Stift tiefer).
     pen_offset_z: float = 0.0
     # paper_z = Z-Höhe der Nozzle, wenn die Nozzle das Papier berührt
@@ -42,6 +49,12 @@ class PenSettings:
         return [f"G1 Z{self.pen_draw_z:.2f} F{self.travel_speed * 60:.0f}"]
 
     def lift_gcode(self):
+        """Kleiner Hub (z. B. 1 mm) - nur fuer feine Zwischenbewegungen.
+
+        NICHT zum Verfahren zwischen Pfaden verwenden (Schleif-Gefahr auf
+        unebenem Papier); dafuer immer up_gcode() mit vollem pen_up_z.
+        Bleibt aus Kompatibilitaetsgruenden erhalten.
+        """
         if self.z_lift_between_paths > 0:
             return [f"G1 Z{self.pen_draw_z + self.z_lift_between_paths:.2f} F{self.travel_speed * 60:.0f}"]
         return self.up_gcode()
