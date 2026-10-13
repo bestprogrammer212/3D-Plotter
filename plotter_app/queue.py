@@ -163,6 +163,109 @@ class QueuedConnection:
             if callback:
                 callback(None, str(e))
 
+    def plot_items(self, items, callback=None, on_color_pause=None):
+        """Live-Plot mit Pause/Stopp-Steuerung.
+
+        items: Liste aus Befehls-Listen (G-Code-Zeilen) und ('pause', farbe)-
+        Markern. Bei einem Farbwechsel stoppt der Plot, bis resume_plot()
+        aufgerufen wird (on_color_pause(farbe) informiert die GUI).
+        stop_plot() bricht ab: laufende Bewegung wird abgebrochen, Stift hoch.
+        """
+        state = {"i": 0, "done": False, "paused": False, "stopped": False,
+                 "waiting": False, "items": items}
+        self._plot_state = state
+
+        def finish(ok, err):
+            if state["done"]:
+                return
+            state["done"] = True
+            self._plot_state = None
+            if callback:
+                callback(ok, err)
+
+        def send_next():
+            if state["stopped"] or state["done"]:
+                return
+            if state["paused"]:
+                return
+            i = state["i"]
+            if i >= len(items):
+                finish(True, None)
+                return
+            item = items[i]
+            if isinstance(item, tuple) and len(item) == 2 and item[0] == "pause":
+                state["paused"] = True
+                if on_color_pause:
+                    on_color_pause(item[1])
+                return
+            def group_cb(ok, err):
+                if state["stopped"] or state["done"]:
+                    return
+                if err:
+                    finish(None, err)
+                    return
+                state["i"] += 1
+                send_next()
+            self._submit("send_script", "\n".join(item), callback=group_cb, replay=False)
+
+        send_next()
+        state["advance"] = send_next
+
+    def pause_plot(self):
+        """Manuelle Pause: keine weiteren Gruppen senden, bis resume_plot()."""
+        st = getattr(self, "_plot_state", None)
+        if st and not st["done"]:
+            st["paused"] = True
+            try:
+                conn = self._get_conn()
+                conn.send_script("PAUSE")
+            except PrinterConnectionError:
+                pass
+
+    def resume_plot(self):
+        """Pause/Farbwechsel bestaetigt: weiterplotten."""
+        st = getattr(self, "_plot_state", None)
+        if st and st.get("paused"):
+            st["paused"] = False
+            if st["i"] < len(st["items"]) and isinstance(st["items"][st["i"]], tuple):
+                st["i"] += 1  # Pause-Marker verwerfen
+            try:
+                conn = self._get_conn()
+                conn.send_script("RESUME")
+            except PrinterConnectionError:
+                pass
+            st["advance"]()
+
+    def resume_plot(self):
+        """Farbwechsel bestaetigt: nach der Pause weiterplotten."""
+        st = getattr(self, "_plot_state", None)
+        if st and st.get("paused"):
+            st["paused"] = False
+            st["i"] += 1  # Pause-Marker verwerfen
+            st["advance"]()
+
+    def stop_plot(self):
+        """Plot abbrechen: Stift hoch + Bewegung abbrechen (M112-classig sanft:
+        Klipper PAUSE/CANCEL via cancel_print, dann pen up)."""
+        st = self._plot_state
+        if st:
+            st["stopped"] = True
+            st["paused"] = False
+        try:
+            conn = self._get_conn()
+            conn.cancel_print()
+        except PrinterConnectionError:
+            pass
+        try:
+            conn = self._get_conn()
+            conn.send_script("G91\nG1 Z5\nG90")
+        except PrinterConnectionError:
+            pass
+        self._queue = queue.Queue()  # wartende Befehle verwerfen
+        if st and not st["done"]:
+            st["done"] = True
+            self._plot_state = None
+
     def plot_groups(self, groups, callback=None):
         """Plot per Einzelbefehlen statt G-Code-Upload: eine Gruppe pro Pfad.
 

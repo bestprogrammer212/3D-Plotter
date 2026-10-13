@@ -120,6 +120,30 @@ def optimize_paths(paths):
     return ordered
 
 
+def optimize_paths_colored(paths, colors):
+    """Wie optimize_paths, aber haelt die Farben parallel mit (Tupel-Rueckgabe).
+
+    Pfade gleicher Farbe werden dabei bevorzugt hintereinander sortiert,
+    damit der Stift seltener gewechselt werden muss.
+    """
+    if not paths:
+        return [], []
+    pairs = [(p, colors[i] if i < len(colors) else None)
+             for i, p in enumerate(paths) if len(p) >= 2]
+    if not pairs:
+        return [], []
+    ordered = [pairs.pop(0)]
+    while pairs:
+        last = ordered[-1][0][-1]
+        cur_color = ordered[-1][1]
+        def cost(pair):
+            p, c = pair
+            d = (p[0][0] - last[0]) ** 2 + (p[0][1] - last[1]) ** 2
+            return (d if c == cur_color else d + 100.0, d)
+        ordered.append(pairs.pop(min(range(len(pairs)), key=lambda i: cost(pairs[i]))))
+    return [p for p, _ in ordered], [c for _, c in ordered]
+
+
 def test_plot(size=0.3):
     """Höhen-Test: kleine Linien, Quadrate und einen Kreis – sieht man sofort,
     ob der Stift richtig aufsetzt bzw. kratzt."""
@@ -246,3 +270,43 @@ def trace_image(filename, resolution=64, threshold=128, paper_w=1.0, paper_h=1.0
             paths.append([(sx, sy), (ex, sy)])
     # Vertikale Kanten andeuten: einfache Kontur-Spur links/rechts
     return paths
+
+
+def trace_image_colored(filename, resolution=64, max_colors=6, paper_w=1.0, paper_h=1.0):
+    """Farbigen Bild-Tracing: quantisiert das Bild (wie PicTraces Bild-Ansatz)
+    auf wenige Farben und erzeugt je Farbe Scan-Zeilen-Pfade.
+
+    Liefert (paths, colors) mit parallel laufender Farbbox pro Pfad ('#rrggbb').
+    Weissnahe Farben werden uebersprungen (Papier bleibt frei).
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        raise RuntimeError("Für Bild-Tracing bitte 'pip install pillow' ausführen.")
+
+    img = Image.open(filename).convert("RGB")
+    img = img.resize((resolution, max(1, int(resolution * img.height / img.width))))
+    quant = img.quantize(colors=max_colors)
+    pal = quant.getpalette()[:max_colors * 3]
+    px = quant.load()
+    w, h = quant.size
+
+    paths, colors = [], []
+    for ci in range(max_colors):
+        r, g, b = pal[ci * 3], pal[ci * 3 + 1], pal[ci * 3 + 2]
+        if r > 230 and g > 230 and b > 230:
+            continue
+        hexcol = f"#{r:02x}{g:02x}{b:02x}"
+        for y in range(h):
+            run = None
+            for x in range(w + 1):
+                match = x < w and px[x, y] == ci
+                if match and run is None:
+                    run = x
+                elif not match and run is not None:
+                    if x - run >= 1:
+                        paths.append([(run / w * paper_w, y / h * paper_h),
+                                      (x / w * paper_w, y / h * paper_h)])
+                        colors.append(hexcol)
+                    run = None
+    return paths, colors

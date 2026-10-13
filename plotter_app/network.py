@@ -263,6 +263,9 @@ class OctoPrintConnection(PrinterConnection):
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
 
+    def cancel_print(self):
+        self._request("POST", "/api/job", {"command": "cancel"}, headers=self._headers())
+
     def is_printing(self):
         res = self._request("GET", "/api/job", headers=self._headers())
         return res.get("state") in ("printing", "pausing", "paused")

@@ -177,7 +177,8 @@ class DesignCanvas(QtWidgets.QWidget):
         self.app = app
         self.setMinimumHeight(320)
         self.setMouseTracking(True)
-        self._drag = None  # (pfad-index, start-paper-x, start-paper-y, backup)
+        self._drag = None   # (pfad-indizes, start-paper-x, start-paper-y, backups)
+        self._lasso = None  # aktuelle Lasso-Punkte (Bildschirm)
 
     def _paper_pos(self, e):
         """Maus-Punkt -> Papier-Koordinaten (0..1); None wenn ausserhalb."""
@@ -237,12 +238,34 @@ class DesignCanvas(QtWidgets.QWidget):
         pt = self._paper_pos(e)
         if pt is None:
             return
+        if e.modifiers() & QtCore.Qt.ControlModifier or self.app.lasso_mode:
+            # Lasso-Start: Auswahl aufziehen
+            self._lasso = [pt]
+            if not (e.modifiers() & QtCore.Qt.ShiftModifier) and not self.app.lasso_mode:
+                self.app.selected.clear()
+            return
         idx = self._hit_path(pt)
         if idx is not None:
-            self._drag = (idx, pt[0], pt[1], list(self.app.paths[idx]))
+            if e.modifiers() & QtCore.Qt.ShiftModifier:
+                self.app.selected ^= {idx}
+            elif idx not in self.app.selected:
+                self.app.selected = {idx}
+            idxs = sorted(self.app.selected) or [idx]
+            self._drag = (idxs, pt[0], pt[1],
+                          {i: list(self.app.paths[i]) for i in idxs})
             self.setCursor(QtCore.Qt.ClosedHandCursor)
+        else:
+            self.app.selected.clear()
+        self.update()
 
     def mouseMoveEvent(self, e):
+        if self._lasso is not None:
+            pt = self._paper_pos(e)
+            if pt is not None:
+                self._lasso.append(pt)
+                self._update_lasso_selection()
+            self.update()
+            return
         if self._drag is None:
             pt = self._paper_pos(e)
             if pt is not None and self._hit_path(pt) is not None:
@@ -253,13 +276,26 @@ class DesignCanvas(QtWidgets.QWidget):
         pt = self._paper_pos(e)
         if pt is None:
             return
-        idx, sx, sy, backup = self._drag
+        idxs, sx, sy, backups = self._drag
         dx, dy = pt[0] - sx, pt[1] - sy
-        self.app.paths[idx] = [(min(1.0, max(0.0, x + dx)),
-                                min(1.0, max(0.0, y + dy))) for (x, y) in backup]
+        for i in idxs:
+            self.app.paths[i] = [(min(1.0, max(0.0, x + dx)),
+                                  min(1.0, max(0.0, y + dy))) for (x, y) in backups[i]]
         self.update()
 
+    def _update_lasso_selection(self):
+        """Alle Pfade whlen, deren Punkte im Lasso-Polygon liegen."""
+        if not self._lasso or len(self._lasso) < 3:
+            return
+        poly = self._lasso
+        self.app.selected = {
+            i for i, path in enumerate(self.app.paths)
+            if any(_point_in_polygon(p, poly) for p in path)}
+
     def mouseReleaseEvent(self, _e):
+        if self._lasso is not None:
+            self._update_lasso_selection()
+            self._lasso = None
         self._drag = None
         self.setCursor(QtCore.Qt.ArrowCursor)
         self.update()
@@ -293,6 +329,7 @@ class DesignCanvas(QtWidgets.QWidget):
 
         # Papier-Polygon (falls kalibriert): Design in echter Position zeichnen
         paths = self.app.paths + ([self.app.free_path] if self.app.free_path else [])
+        colors = list(self.app.path_colors) + [None] * (len(paths) - len(self.app.path_colors))
         if cal.is_complete:
             poly = QtGui.QPolygonF()
             for (x, y) in cal.polygon:
@@ -303,11 +340,15 @@ class DesignCanvas(QtWidgets.QWidget):
             p.setPen(QtGui.QPen(QtGui.QColor("#c6a700"), 1, QtCore.Qt.DashLine))
             p.drawPolygon(poly)
 
-            # Design-Pfade auf das kalibrierte Papier gemappt
-            p.setPen(QtGui.QPen(QtGui.QColor("#1565c0"), 2))
-            for path in paths:
+            # Design-Pfade auf das kalibrierte Papier gemappt (in Pfad-Farbe)
+            for pi, path in enumerate(paths):
                 if len(path) < 2:
                     continue
+                col = QtGui.QColor(colors[pi] or "#1565c0")
+                if pi in self.app.selected:
+                    p.setPen(QtGui.QPen(col, 3))
+                else:
+                    p.setPen(QtGui.QPen(col, 2))
                 poly2 = QtGui.QPolygonF()
                 for (px, py) in path:
                     mx, my = cal.paper_to_machine(px, py)
@@ -320,15 +361,27 @@ class DesignCanvas(QtWidgets.QWidget):
                        "Noch nicht kalibriert\nDesign wird erst nach der\nEcken-Kalibrierung "
                        "auf dem Bett angezeigt.")
             # Design ohne Kalibrierung klein andeuten
-            p.setPen(QtGui.QPen(QtGui.QColor("#1565c0"), 1, QtCore.Qt.DashLine))
-            for path in paths:
+            for pi, path in enumerate(paths):
                 if len(path) < 2:
                     continue
+                col = QtGui.QColor(colors[pi] or "#1565c0")
+                pen_w = 2 if pi in self.app.selected else 1
+                p.setPen(QtGui.QPen(col, pen_w, QtCore.Qt.DashLine))
                 poly2 = QtGui.QPolygonF()
                 for (px, py) in path:
                     poly2.append(QtCore.QPointF(ox + px * bw * scale,
                                                 oy + (1 - py) * bh * scale))
                 p.drawPolyline(poly2)
+
+        # Lasso-Umrandung zeichnen
+        if self._lasso and len(self._lasso) >= 2:
+            lasso_poly = QtGui.QPolygonF()
+            for (px, py) in self._lasso:
+                lasso_poly.append(QtCore.QPointF(ox + px * bw * scale,
+                                                oy + (1 - py) * bh * scale))
+            p.setPen(QtGui.QPen(QtGui.QColor("#4f8cff"), 1, QtCore.Qt.DashLine))
+            p.setBrush(QtGui.QColor(79, 140, 255, 40))
+            p.drawPolygon(lasso_poly)
 
         # Stift-Position (klein)
         if self.app.pen_pos:
@@ -466,6 +519,10 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.current_printer = None
         self.connection = None
         self.paths = []
+        self.path_colors = []   # parallel zu self.paths: '#rrggbb' oder None
+        self.selected = set()    # ausgewaehlte Pfad-Indizes (Lasso/Klick)
+        self.design_color = "#1565c0"  # Farbe fuer neue Pfade
+        self.lasso_mode = False
         self.free_path = None
         self.pen_pos = None
         self._poll_fail = 0
@@ -483,6 +540,31 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self._build_export_tab()
         self._install_jog_shortcuts()
         self._start_polling()
+
+    def _add_paths(self, new_paths, color=None, colors=None):
+        """Pfade (und parallel Farben) ins Design aufnehmen."""
+        for i, p in enumerate(new_paths):
+            if len(p) < 2:
+                continue
+            self.paths.append(p)
+            self.path_colors.append(colors[i] if colors and i < len(colors) else color)
+        self.selected.clear()
+        self.paper_canvas.update()
+
+    def _remove_path(self, idx):
+        self.paths.pop(idx)
+        self.path_colors.pop(idx)
+        self.selected = {i for i in self.selected if i != idx}
+        self.selected = {i - 1 if i > idx else i for i in self.selected}
+
+    def _set_selected_color(self, color):
+        """Farbe der Auswahl setzen (leer = allen markierten)."""
+        idxs = self.selected or set(range(len(self.paths)))
+        for i in idxs:
+            if i < len(self.path_colors):
+                self.path_colors[i] = color
+        self.design_color = color
+        self.paper_canvas.update()
 
     # ---------- Toolbar ----------
     def _build_toolbar(self):
@@ -885,6 +967,22 @@ class PlotterWindow(QtWidgets.QMainWindow):
             imf.addWidget(b)
         panel.addWidget(imp)
 
+        sel = QtWidgets.QGroupBox("Auswahl & Farbe")
+        self.lasso_check = QtWidgets.QCheckBox("Lasso-Modus (Fläche aufziehen)")
+        self.lasso_check.toggled.connect(self._toggle_lasso)
+        sel_btn = QtWidgets.QPushButton("Auswahl löschen")
+        sel_btn.clicked.connect(lambda: (self.selected.clear(), self.paper_canvas.update()))
+        del_btn = QtWidgets.QPushButton("Auswahl löschen (Pfade)")
+        del_btn.clicked.connect(self._delete_selected)
+        color_btn = QtWidgets.QPushButton("Farbe für Auswahl …")
+        color_btn.clicked.connect(self._pick_color)
+        self.color_lbl = QtWidgets.QLabel("Farbe: ")
+        self._update_color_label()
+        sl = QtWidgets.QVBoxLayout(sel)
+        for w in (self.lasso_check, sel_btn, del_btn, color_btn, self.color_lbl):
+            sl.addWidget(w)
+        panel.addWidget(sel)
+
         presets = QtWidgets.QGroupBox("Vorlagen")
         pf = QtWidgets.QVBoxLayout(presets)
         test_btn = QtWidgets.QPushButton("Höhen-Test")
@@ -908,6 +1006,31 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.paper_canvas = self.design_canvas  # Kompatibilitaet: update() etc.
         self.tabs.addTab(tab, "Design")
 
+    def _toggle_lasso(self, checked):
+        self.lasso_mode = checked
+        self.design_canvas.setCursor(
+            QtCore.Qt.CrossCursor if checked else QtCore.Qt.ArrowCursor)
+
+    def _update_color_label(self):
+        self.color_lbl.setText(f"Farbe: {self.design_color}")
+        self.color_lbl.setStyleSheet(f"color: {self.design_color};")
+
+    def _pick_color(self):
+        col = QtWidgets.QColorDialog.getColor(QtGui.QColor(self.design_color), self, "Farbe wählen")
+        if not col.isValid():
+            return
+        self._set_selected_color(col.name())
+        self._update_color_label()
+
+    def _delete_selected(self):
+        if not self.selected:
+            QtWidgets.QMessageBox.information(self, "Löschen", "Nichts ausgewählt – bitte erst mit Lasso/Klick auswählen.")
+            return
+        for i in sorted(self.selected, reverse=True):
+            self._remove_path(i)
+        self.selected.clear()
+        self.paper_canvas.update()
+
     def _add_shape(self):
         x, y = self.shape_x.value(), self.shape_y.value()
         r, n = self.shape_r.value(), self.shape_n.value()
@@ -922,18 +1045,18 @@ class PlotterWindow(QtWidgets.QMainWindow):
              "Herz": lambda: [tools.heart(x + r, y + r, r)],
              "Raster": lambda: tools.grid(x, y, 2 * r, 2 * r, n, n),
              "Text": lambda: tools.text_paths(self.text_edit.text(), x, y, r)}
-        self.paths.extend(m[name]())
-        self.paper_canvas.update()
+        self._add_paths(m[name](), color=self.design_color)
 
     def _add_preset(self, kind):
         if kind == "test":
-            self.paths.extend(tools.test_plot())
+            self._add_paths(tools.test_plot(), color=self.design_color)
         else:
-            self.paths.extend(tools.calibration_grid())
-        self.paper_canvas.update()
+            self._add_paths(tools.calibration_grid(), color=self.design_color)
 
     def _clear_design(self):
         self.paths.clear()
+        self.path_colors.clear()
+        self.selected.clear()
         self.paper_canvas.update()
 
     def _load_svg(self):
@@ -950,8 +1073,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         if not paths:
             QtWidgets.QMessageBox.warning(self, "SVG", "Keine Pfade gefunden.")
             return
-        self.paths.extend(paths)
-        self.paper_canvas.update()
+        self._add_paths(paths, color=self.design_color)
         self.statusBar().showMessage(f"{len(paths)} SVG-Pfade importiert", 5000)
 
     def _load_image(self):
@@ -959,12 +1081,26 @@ class PlotterWindow(QtWidgets.QMainWindow):
             self, "Bild öffnen", "", "Bilder (*.png *.jpg *.jpeg *.bmp)")
         if not path:
             return
+        farbig = QtWidgets.QMessageBox.question(
+            self, "Bild tracer", "Farbig traceren (eine Farbe je Bild-Farbe,\nmit Farbwechsel-Pausen beim Plotten)?")
         try:
-            self.paths.extend(tools.trace_image(path, resolution=64))
+            if farbig == QtWidgets.QMessageBox.Yes:
+                paths, colors = tools.trace_image_colored(path, resolution=64)
+                if not paths:
+                    QtWidgets.QMessageBox.warning(self, "Bild tracer", "Keine Farbbereiche gefunden.")
+                    return
+                self._add_paths(paths, colors=colors)
+            else:
+                paths = tools.trace_image(path, resolution=64)
+                if not paths:
+                    QtWidgets.QMessageBox.warning(self, "Bild tracer", "Keine dunklen Bereiche gefunden.")
+                    return
+                self._add_paths(paths, color=self.design_color)
         except RuntimeError as e:
             QtWidgets.QMessageBox.critical(self, "Fehler", str(e))
             return
-        self.paper_canvas.update()
+        self._update_color_label()
+        self.statusBar().showMessage(f"{len(paths)} Bild-Pfade importiert", 5000)
 
     # ---------- Export ----------
     def _build_export_tab(self):
@@ -982,6 +1118,18 @@ class PlotterWindow(QtWidgets.QMainWindow):
         plot_btn.clicked.connect(self._plot_over_ip)
         layout.addWidget(save_btn)
         layout.addWidget(plot_btn)
+
+        ctrl = QtWidgets.QGroupBox("Live-Plot Steuerung")
+        cf = QtWidgets.QHBoxLayout(ctrl)
+        self.pause_btn = QtWidgets.QPushButton("⏸ Pause / Weiter")
+        self.pause_btn.clicked.connect(self._toggle_pause)
+        self.stop_btn = QtWidgets.QPushButton("⏹ Stopp")
+        self.stop_btn.clicked.connect(self._stop_plot)
+        for b in (self.pause_btn, self.stop_btn):
+            cf.addWidget(b)
+        layout.addWidget(ctrl)
+        self.plot_status = QtWidgets.QLabel("")
+        layout.addWidget(self.plot_status)
         layout.addStretch()
         self.tabs.addTab(tab, "Export")
 
@@ -1014,22 +1162,52 @@ class PlotterWindow(QtWidgets.QMainWindow):
             on_main_thread(apply)
         self.connection.is_printing(printing_cb)
 
+    def _toggle_pause(self):
+        if not self.connection:
+            return
+        st = getattr(self.connection, "_plot_state", None)
+        if st and st.get("paused"):
+            self.connection.resume_plot()
+            self.plot_status.setText("Plot läuft …")
+        else:
+            self.connection.pause_plot()
+            self.plot_status.setText("Plot pausiert (Stift bleibt oben, nächste Gruppe wartet)")
+
+    def _stop_plot(self):
+        if not self.connection:
+            return
+        self.connection.stop_plot()
+        self.plot_status.setText("Plot gestoppt – Stift hoch, Befehle verworfen.")
+
     def _start_ip_plot(self):
         btn = QtWidgets.QMessageBox.question(self, "Plot starten", "Jetzt über IP plotten?")
         if btn != QtWidgets.QMessageBox.Yes:
             return
-        paths = tools.optimize_paths(self.paths) if self.optimize_check.isChecked() else self.paths
-        groups = plot_command_groups(paths, self.calibration, self.pen)
+        if self.optimize_check.isChecked():
+            paths, colors = tools.optimize_paths_colored(self.paths, self.path_colors)
+        else:
+            paths, colors = self.paths, self.path_colors
+        items = plot_command_groups(paths, self.calibration, self.pen, colors=colors)
 
         def cb(ok, err):
             def apply():
                 if err:
                     QtWidgets.QMessageBox.critical(self, "Netzwerkfehler", err)
+                    self.plot_status.setText("")
                 else:
-                    self.statusBar().showMessage("Plot beendet", 5000)
+                    self.plot_status.setText("Plot beendet ✓")
             on_main_thread(apply)
-        self.connection.plot_groups(groups, callback=cb)
-        self.statusBar().showMessage("Plot läuft (Befehle werden live gesendet) …", 0)
+
+        def color_pause(color):
+            def apply():
+                self.plot_status.setText(f"⏸ Farbwechsel: bitte Stift auf {color} wechseln, dann „Weiter“.")
+                QtWidgets.QMessageBox.information(
+                    self, "Farbwechsel",
+                    f"Farbwechsel: bitte den Stift auf {color} umtauschen\nund danach „Pause / Weiter“ im Export-Tab drücken.")
+            on_main_thread(apply)
+
+        self.connection.plot_items(items, callback=cb, on_color_pause=color_pause)
+        self.plot_status.setText("Plot läuft (Befehle werden live gesendet) …")
 
     def _validate_for_export(self):
         if not self.paths:
