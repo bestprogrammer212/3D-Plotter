@@ -130,9 +130,20 @@ class MoonrakerConnection(PrinterConnection):
                 resp.read()
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
-        # Druck jetzt explizit starten (Datei liegt im gcodes-Root)
-        self._request("POST", "/printer/print/start",
-                      {"filename": filename}, headers=self._headers())
+        # Druck explizit starten; Moonraker braucht nach dem Upload kurz
+        # Zeit, um die Datei zu registrieren -> kurzer Retry mit Wartezeit
+        import time
+        last_err = None
+        for delay in (0.0, 0.5, 1.5, 3.0):
+            if delay:
+                time.sleep(delay)
+            try:
+                self._request("POST", "/printer/print/start",
+                              {"filename": filename}, headers=self._headers())
+                return
+            except PrinterConnectionError as e:
+                last_err = e
+        raise PrinterConnectionError(f"Druckstart fehlgeschlagen: {last_err}")
 
     def emergency_stop(self):
         """Sofort-Notaus (direkt, nicht über die G-Code-Warteschlange)."""
