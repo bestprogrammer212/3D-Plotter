@@ -684,7 +684,7 @@ class PlotterApp(tk.Tk):
         if not messagebox.askyesno("Plot starten", "Plotten jetzt über IP starten?\nStift montiert und Papier aufgelegt?"):
             return
         paths = tools.optimize_paths(self.paths) if self._do_optimize.get() else self.paths
-        items = plot_command_groups(paths, self.calibration, self.pen)
+        items, _order = plot_command_groups(paths, self.calibration, self.pen)
         groups = [g for g in items if not isinstance(g, tuple)]
 
         def cb(ok, err):

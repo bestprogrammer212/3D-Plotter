@@ -65,24 +65,42 @@ def color_segments(colors):
 
 
 def plot_command_groups(paths, calibration: Calibration, pen: PenSettings,
-                        colors=None):
+                        colors=None, progress=None):
     """Befehls-Gruppen fuer das LIVE-Plotten (Senden per Einzelbefehl).
 
     items: Liste von Befehls-Listen; zwischen Farbsegmenten wird ein
     Pause-Marker ('pause', farbe) eingefuegt – der Plot stoppt dort,
     bis der Nutzer den Farbwechsel bestaetigt.
+    progress: optionale Liste, parallel zu items: Anzahl gezeichneter Pfade
+    NACH Ausfuehrung des jeweiligen Items (fuer die Live-Vorschau).
+    order: Rueckgabe ist (items, order) falls order=True; order ist die Liste
+    der Pfade in exakter Sende-Reihenfolge (fuer Live-Zeichnung).
     """
     head = ["G90", "G21", "G28 X Y", "M107"]
     head.extend(pen.up_gcode())
     items = [head]
+    if progress is not None:
+        progress.append(0)
     segments = color_segments(colors or [None] * len(paths))
+    order, order_colors = [], []
+    drawn = 0
     for si, (color, idxs) in enumerate(segments):
         seg_paths = [paths[i] for i in idxs]
         if color and si > 0:
             items.append(("pause", color))
-        items.extend(_draw_groups(seg_paths, calibration, pen))
+            if progress is not None:
+                progress.append(drawn)
+        for gi, g in enumerate(_draw_groups(seg_paths, calibration, pen)):
+            items.append(g)
+            order.append(seg_paths[gi])
+            order_colors.append(color or None)
+            drawn += 1
+            if progress is not None:
+                progress.append(drawn)
     items.append(pen.up_gcode() + ["G0 X0 Y0", "M84"])
-    return items
+    if progress is not None:
+        progress.append(drawn)
+    return items, (order, order_colors)
 
 
 def export_gcode(paths, calibration: Calibration, pen: PenSettings,
