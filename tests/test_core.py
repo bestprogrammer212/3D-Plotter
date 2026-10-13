@@ -84,7 +84,7 @@ class TestGcode(unittest.TestCase):
         for p in [(0, 0), (100, 0), (100, 100), (0, 100)]:
             cal.add_point(*p)
         pen = PenSettings()
-        groups = plot_command_groups([[(0.1, 0.1), (0.9, 0.1)]], cal, pen)
+        groups, _order = plot_command_groups([[(0.1, 0.1), (0.9, 0.1)]], cal, pen)
         head = groups[0]
         self.assertIn("G28 X Y", head)
         self.assertNotIn("G28\n", "\n".join(head))  # kein Home-All (Z-Crash-Gefahr)
@@ -101,6 +101,43 @@ class TestGcode(unittest.TestCase):
         segs = color_segments(["#ff0000", "#ff0000", "#00ff00", None, None, "#00ff00"])
         self.assertEqual(segs, [("#ff0000", [0, 1]), ("#00ff00", [2]), ("", [3, 4]), ("#00ff00", [5])])
 
+    def test_plot_command_groups_order_and_progress(self):
+        """order liefert die Pfade in Sende-Reihenfolge, progress zaehlt mit."""
+        cal = Calibration()
+        for p in [(0, 0), (100, 0), (100, 100), (0, 100)]:
+            cal.add_point(*p)
+        pen = PenSettings()
+        paths = [[(0.1, 0.1), (0.9, 0.1)], [(0.2, 0.8), (0.8, 0.2)]]
+        progress = []
+        items, (order, order_colors) = plot_command_groups(
+            paths, cal, pen, colors=["#ff0000", "#00ff00"], progress=progress)
+        self.assertEqual(order, paths)
+        self.assertEqual(order_colors, ["#ff0000", "#00ff00"])
+        # progress wachsend und endet bei 2 gezeichneten Pfaden
+        self.assertEqual(progress[-1], 2)
+        self.assertEqual(len(progress), len(items))
+
+    def test_trace_image_colored_contours(self):
+        """Kontur-Tracer liefert wenige, geschlossene Konturen je Farbe."""
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            self.skipTest("Pillow nicht installiert")
+        img = Image.new("RGB", (100, 100), "white")
+        d = ImageDraw.Draw(img)
+        d.ellipse((20, 30, 80, 70), fill="red")
+        d.rectangle((10, 10, 15, 90), fill="blue")
+        import tempfile, os
+        f = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        img.save(f.name)
+        self.addCleanup(os.unlink, f.name)
+        from plotter_app.tools import trace_image_colored
+        paths, colors = trace_image_colored(f.name, resolution=64)
+        self.assertLessEqual(len(paths), 6)          # wenige, keine Fragmente
+        self.assertTrue(all(len(p) >= 4 for p in paths))
+        self.assertIn("#ff0000", colors)
+        self.assertIn("#0000ff", colors)
+
     def test_plot_command_groups_color_pause(self):
         """Bei Farbwechsel gibt es einen ('pause', farbe)-Marker VOR der neuen Farbe."""
         cal = Calibration()
@@ -108,7 +145,7 @@ class TestGcode(unittest.TestCase):
             cal.add_point(*p)
         pen = PenSettings()
         paths = [[(0.1, 0.1), (0.9, 0.1)], [(0.2, 0.8), (0.8, 0.2)]]
-        items = plot_command_groups(paths, cal, pen,
+        items, _order = plot_command_groups(paths, cal, pen,
                                     colors=["#ff0000", "#00ff00"])
         markers = [it for it in items if isinstance(it, tuple)]
         self.assertEqual(len(markers), 1)
@@ -122,7 +159,7 @@ class TestGcode(unittest.TestCase):
             cal.add_point(*p)
         pen = PenSettings()
         paths = [[(0.1, 0.1), (0.9, 0.1)], [(0.2, 0.8), (0.8, 0.2)]]
-        items = plot_command_groups(paths, cal, pen, colors=["#ff0000", "#ff0000"])
+        items, _order = plot_command_groups(paths, cal, pen, colors=["#ff0000", "#ff0000"])
         self.assertFalse(any(isinstance(it, tuple) for it in items))
 
     def test_optimize_paths_colored(self):

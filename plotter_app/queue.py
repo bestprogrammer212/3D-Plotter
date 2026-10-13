@@ -163,7 +163,7 @@ class QueuedConnection:
             if callback:
                 callback(None, str(e))
 
-    def plot_items(self, items, callback=None, on_color_pause=None):
+    def plot_items(self, items, callback=None, on_color_pause=None, on_progress=None):
         """Live-Plot mit Pause/Stopp-Steuerung.
 
         items: Liste aus Befehls-Listen (G-Code-Zeilen) und ('pause', farbe)-
@@ -204,6 +204,8 @@ class QueuedConnection:
                 if err:
                     finish(None, err)
                     return
+                if on_progress:
+                    on_progress(state["i"])  # Index des fertigen Items
                 state["i"] += 1
                 send_next()
             self._submit("send_script", "\n".join(item), callback=group_cb, replay=False)

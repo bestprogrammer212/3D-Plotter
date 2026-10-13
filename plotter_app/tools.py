@@ -272,12 +272,95 @@ def trace_image(filename, resolution=64, threshold=128, paper_w=1.0, paper_h=1.0
     return paths
 
 
-def trace_image_colored(filename, resolution=64, max_colors=6, paper_w=1.0, paper_h=1.0):
-    """Farbigen Bild-Tracing: quantisiert das Bild (wie PicTraces Bild-Ansatz)
-    auf wenige Farben und erzeugt je Farbe Scan-Zeilen-Pfade.
+def _trace_mask_paths(mask, w, h, paper_w, paper_h, min_area=3):
+    """Konturen einer binären Maske als geschlossene Polygone.
 
-    Liefert (paths, colors) mit parallel laufender Farbbox pro Pfad ('#rrggbb').
-    Weissnahe Farben werden uebersprungen (Papier bleibt frei).
+    Marching-Squares-Konturverfolgung: liefert UMRISSE statt Scan-Zeilen
+    -> wenige, saubere, geschlossene Pfade (wie ein Vektorisierer).
+    """
+    visited = set()
+    paths = []
+    # Innenpixel mit Nachbar-Ausenpixel = Konturkandidaten
+    def is_set(x, y):
+        return 0 <= x < w and 0 <= y < h and mask[y * w + x]
+
+    def edge_segments(x, y):
+        """Kanten des Pixels (x,y) die an ein Nicht-Mask-Pixel grenzen."""
+        segs = []
+        # obere Kante (links->rechts)
+        if not is_set(x, y - 1):
+            segs.append(((x, y), (x + 1, y)))
+        # rechte Kante (oben->unten)
+        if not is_set(x + 1, y):
+            segs.append(((x + 1, y), (x + 1, y + 1)))
+        # untere Kante (rechts->links)
+        if not is_set(x, y + 1):
+            segs.append(((x + 1, y + 1), (x, y + 1)))
+        # linke Kante (unten->oben)
+        if not is_set(x - 1, y):
+            segs.append(((x, y + 1), (x, y)))
+        return segs
+
+    all_edges = {}
+    for y in range(h):
+        for x in range(w):
+            if mask[y * w + x]:
+                for a, b in edge_segments(x, y):
+                    all_edges.setdefault(a, []).append(b)
+
+    while all_edges:
+        # neue Kontur starten
+        start = next(iter(all_edges))
+        contour = [start]
+        cur = start
+        while True:
+            nxts = all_edges.get(cur, [])
+            if not nxts:
+                break
+            nxt = nxts.pop(0)
+            if not nxts:
+                del all_edges[cur]
+            rev = all_edges.get(nxt, [])
+            if cur in rev:
+                rev.remove(cur)
+                if not rev:
+                    del all_edges[nxt]
+            contour.append(nxt)
+            cur = nxt
+            if cur == start or nxt == start:
+                break
+        if len(contour) >= 4:
+            pts = []
+            for (x, y) in contour:
+                px_ = (x / w) * paper_w
+                py_ = (1 - y / h) * paper_h  # Bild-y invertieren
+                if not pts or (abs(px_ - pts[-1][0]) > 1e-9 or abs(py_ - pts[-1][1]) > 1e-9):
+                    pts.append((px_, py_))
+            if len(pts) >= 4:
+                paths.append(pts)
+    return paths
+
+
+def _contour_area(pts):
+    """Geschätzte Flaeche eines Kontur-Polygons (Shoelace, Absolutwert)."""
+    a = 0.0
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        a += x1 * y2 - x2 * y1
+    return abs(a) / 2
+
+
+def trace_image_colored(filename, resolution=96, max_colors=6,
+                        paper_w=1.0, paper_h=1.0, min_area=0.0004):
+    """Farbiger Bild-Tracer mit echter KONTUR-Verfolgung.
+
+    RGB-Quantisierung auf wenige Farben; je Farbe werden REGIONEN als
+    geschlossene Umrisse nachverfolgt (Marching Squares) statt Scan-Zeilen.
+    Seltene Farben (Rand-Mischpixel) werden auf die aehnlichste Hauptfarbe
+    gemappt; kleine Fragmente werden verworfen -> saubere Vektor-Konturen.
+    Liefert (paths, colors) mit '#rrggbb' je Pfad. Weiss bleibt frei.
     """
     try:
         from PIL import Image
@@ -285,28 +368,66 @@ def trace_image_colored(filename, resolution=64, max_colors=6, paper_w=1.0, pape
         raise RuntimeError("Für Bild-Tracing bitte 'pip install pillow' ausführen.")
 
     img = Image.open(filename).convert("RGB")
-    img = img.resize((resolution, max(1, int(resolution * img.height / img.width))))
-    quant = img.quantize(colors=max_colors)
+    scale = min(1.0, resolution * 2 / max(img.width, img.height))
+    if scale < 1.0:
+        img = img.resize((max(1, int(img.width * scale)),
+                          max(1, int(img.height * scale))), Image.LANCZOS)
+    quant = img.quantize(colors=max_colors, dither=Image.Dither.NONE)
     pal = quant.getpalette()[:max_colors * 3]
     px = quant.load()
     w, h = quant.size
+    n_px = w * h
+
+    # Farbnutzung zaehlen; seltene Farben (<1.5%) auf aehnlichste Hauptfarbe
+    counts = [0] * max_colors
+    for y in range(h):
+        for x in range(w):
+            counts[px[x, y]] += 1
+    def rgb(ci):
+        base = ci * 3
+        return (pal[base] if base < len(pal) else 0,
+                pal[base + 1] if base + 1 < len(pal) else 0,
+                pal[base + 2] if base + 2 < len(pal) else 0)
+    main_colors = [ci for ci in range(max_colors) if counts[ci] >= 0.015 * n_px]
+    remap = {}
+    for ci in range(max_colors):
+        if ci in main_colors:
+            remap[ci] = ci
+            continue
+        # aehnlichste Hauptfarbe (RGB-Abstand); Weiss als Ziel vermeiden
+        targets = [m for m in main_colors
+                   if not (rgb(m)[0] > 230 and rgb(m)[1] > 230 and rgb(m)[2] > 230)]
+        if not targets:
+            remap[ci] = ci
+            continue
+        best = min(targets, key=lambda m: sum((a - b) ** 2 for a, b in zip(rgb(ci), rgb(m))))
+        remap[ci] = best
 
     paths, colors = [], []
+    done = set()
     for ci in range(max_colors):
-        r, g, b = pal[ci * 3], pal[ci * 3 + 1], pal[ci * 3 + 2]
+        target = remap[ci]
+        if target in done or target != ci and target in main_colors and target in done:
+            continue
+        if target in done:
+            continue
+        r, g, b = rgb(target)
         if r > 230 and g > 230 and b > 230:
+            done.add(target)
             continue
         hexcol = f"#{r:02x}{g:02x}{b:02x}"
-        for y in range(h):
-            run = None
-            for x in range(w + 1):
-                match = x < w and px[x, y] == ci
-                if match and run is None:
-                    run = x
-                elif not match and run is not None:
-                    if x - run >= 1:
-                        paths.append([(run / w * paper_w, y / h * paper_h),
-                                      (x / w * paper_w, y / h * paper_h)])
-                        colors.append(hexcol)
-                    run = None
+        mask = [remap[px[x, y]] == target for y in range(h) for x in range(w)]
+        if not any(mask):
+            done.add(target)
+            continue
+        contours = _trace_mask_paths(mask, w, h, paper_w, paper_h)
+        kept = 0
+        for c in contours:
+            if len(c) >= 4 and _contour_area(c) >= min_area:
+                simp = simplify(c, 0.003)
+                if len(simp) >= 4:
+                    paths.append(simp)
+                    colors.append(hexcol)
+                    kept += 1
+        done.add(target)
     return paths, colors

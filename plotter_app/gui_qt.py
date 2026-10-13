@@ -246,10 +246,13 @@ class DesignCanvas(QtWidgets.QWidget):
             return
         idx = self._hit_path(pt)
         if idx is not None:
+            gid = self.app._group_of(idx)
+            group_idxs = self.app._indices_of_group(gid) if gid is not None else {idx}
             if e.modifiers() & QtCore.Qt.ShiftModifier:
-                self.app.selected ^= {idx}
-            elif idx not in self.app.selected:
-                self.app.selected = {idx}
+                self.app.selected ^= group_idxs
+            elif not group_idxs.issubset(self.app.selected):
+                # Klick auf ein Objekt: das GANZE Objekt auswaehlen
+                self.app.selected = group_idxs
             idxs = sorted(self.app.selected) or [idx]
             self._drag = (idxs, pt[0], pt[1],
                           {i: list(self.app.paths[i]) for i in idxs})
@@ -496,6 +499,64 @@ class BedCanvas(QtWidgets.QWidget):
             f"Bett-Klick: X={pos[0]:.1f} Y={pos[1]:.1f} (mit WASD/RF verfeinern)", 5000)
 
 
+class LivePlotCanvas(QtWidgets.QWidget):
+    """Live-Vorschau im Export-Tab: zeichnet beim Plotten Pfad fuer Pfad
+    in der Reihenfolge, in der die Befehle wirklich gesendet werden."""
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self._paths = []      # Pfade in Sende-Reihenfolge
+        self._colors = []
+        self._drawn = 0       # wie viele Pfade bereits gezeichnet wurden
+
+    def start(self, paths, colors=None):
+        self._paths = list(paths)
+        self._colors = list(colors or []) + [None] * max(0, len(paths) - len(colors or []))
+        self._drawn = 0
+        self.update()
+
+    def set_progress(self, drawn):
+        if drawn != self._drawn:
+            self._drawn = drawn
+            self.update()
+
+    def paintEvent(self, _event):
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.Antialiasing)
+        p.fillRect(0, 0, self.width(), self.height(), QtGui.QColor("#151619"))
+        if not self._paths:
+            p.setPen(QtGui.QPen(QtGui.QColor("#9aa0aa")))
+            p.drawText(QtCore.QRectF(0, 0, self.width(), self.height()),
+                       QtCore.Qt.AlignCenter,
+                       "Live-Vorschau: erscheint während des Plottens")
+            p.end()
+            return
+        margin = 16
+        scale = min((self.width() - 2 * margin), (self.height() - 2 * margin))
+        ox = (self.width() - scale) / 2
+        oy = (self.height() - scale) / 2
+        # Papier-Rahmen
+        p.setPen(QtGui.QPen(QtGui.QColor("#555"), 1))
+        p.setBrush(QtGui.QColor("#202226"))
+        p.drawRect(QtCore.QRectF(ox, oy, scale, scale))
+        for i, path in enumerate(self._paths):
+            if len(path) < 2:
+                continue
+            col = QtGui.QColor(self._colors[i] or "#4f8cff") if i < self._drawn else QtGui.QColor("#3a3d44")
+            p.setPen(QtGui.QPen(col, 2))
+            poly = QtGui.QPolygonF()
+            for (px, py) in path:
+                poly.append(QtCore.QPointF(ox + px * scale, oy + (1 - py) * scale))
+            p.drawPolyline(poly)
+        # Fortschritts-Text
+        p.setPen(QtGui.QPen(QtGui.QColor("#e6e6e6")))
+        p.drawText(QtCore.QRectF(ox, oy, scale, scale),
+                   QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter,
+                   f"{self._drawn} / {len(self._paths)} Pfade gezeichnet")
+        p.end()
+
+
 class PlotterWindow(QtWidgets.QMainWindow):
     @staticmethod
     def _dspin(lo, hi, value, step=None, decimals=2):
@@ -520,6 +581,8 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.connection = None
         self.paths = []
         self.path_colors = []   # parallel zu self.paths: '#rrggbb' oder None
+        self.path_groups = []    # parallel: Objekt-ID (Import/Form = ein Objekt)
+        self._group_seq = 0
         self.selected = set()    # ausgewaehlte Pfad-Indizes (Lasso/Klick)
         self.design_color = "#1565c0"  # Farbe fuer neue Pfade
         self.lasso_mode = False
@@ -541,19 +604,34 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self._install_jog_shortcuts()
         self._start_polling()
 
-    def _add_paths(self, new_paths, color=None, colors=None):
-        """Pfade (und parallel Farben) ins Design aufnehmen."""
+    def _add_paths(self, new_paths, color=None, colors=None, new_group=True):
+        """Pfade (und parallel Farben) ins Design aufnehmen.
+
+        new_group=True: alle Pfade bilden EIN Objekt (Klick waehlt das ganze
+        Objekt aus, z. B. ein importiertes Bild/SVG/eine Form).
+        """
+        self._group_seq += 1
+        gid = self._group_seq
         for i, p in enumerate(new_paths):
             if len(p) < 2:
                 continue
             self.paths.append(p)
             self.path_colors.append(colors[i] if colors and i < len(colors) else color)
+            self.path_groups.append(gid if new_group else None)
         self.selected.clear()
         self.paper_canvas.update()
+
+    def _indices_of_group(self, gid):
+        return {i for i, g in enumerate(self.path_groups) if g == gid and g is not None}
+
+    def _group_of(self, idx):
+        return self.path_groups[idx] if idx < len(self.path_groups) else None
 
     def _remove_path(self, idx):
         self.paths.pop(idx)
         self.path_colors.pop(idx)
+        if idx < len(self.path_groups):
+            self.path_groups.pop(idx)
         self.selected = {i for i in self.selected if i != idx}
         self.selected = {i - 1 if i > idx else i for i in self.selected}
 
@@ -1056,6 +1134,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
     def _clear_design(self):
         self.paths.clear()
         self.path_colors.clear()
+        self.path_groups.clear()
         self.selected.clear()
         self.paper_canvas.update()
 
@@ -1085,7 +1164,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
             self, "Bild tracer", "Farbig traceren (eine Farbe je Bild-Farbe,\nmit Farbwechsel-Pausen beim Plotten)?")
         try:
             if farbig == QtWidgets.QMessageBox.Yes:
-                paths, colors = tools.trace_image_colored(path, resolution=64)
+                paths, colors = tools.trace_image_colored(path, resolution=128)
                 if not paths:
                     QtWidgets.QMessageBox.warning(self, "Bild tracer", "Keine Farbbereiche gefunden.")
                     return
@@ -1130,6 +1209,10 @@ class PlotterWindow(QtWidgets.QMainWindow):
         layout.addWidget(ctrl)
         self.plot_status = QtWidgets.QLabel("")
         layout.addWidget(self.plot_status)
+
+        self.live_canvas = LivePlotCanvas(self)
+        self.live_canvas.setMinimumHeight(260)
+        layout.addWidget(self.live_canvas, 1)
         layout.addStretch()
         self.tabs.addTab(tab, "Export")
 
@@ -1187,7 +1270,10 @@ class PlotterWindow(QtWidgets.QMainWindow):
             paths, colors = tools.optimize_paths_colored(self.paths, self.path_colors)
         else:
             paths, colors = self.paths, self.path_colors
-        items = plot_command_groups(paths, self.calibration, self.pen, colors=colors)
+        progress = []
+        items, (order, order_colors) = plot_command_groups(paths, self.calibration, self.pen,
+                                                           colors=colors, progress=progress)
+        self.live_canvas.start(order, order_colors)
 
         def cb(ok, err):
             def apply():
@@ -1206,7 +1292,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
                     f"Farbwechsel: bitte den Stift auf {color} umtauschen\nund danach „Pause / Weiter“ im Export-Tab drücken.")
             on_main_thread(apply)
 
-        self.connection.plot_items(items, callback=cb, on_color_pause=color_pause)
+        def prog(item_index):
+            if 0 <= item_index < len(progress):
+                on_main_thread(lambda i=item_index: self.live_canvas.set_progress(progress[i]))
+
+        self.connection.plot_items(items, callback=cb, on_color_pause=color_pause,
+                                   on_progress=prog)
         self.plot_status.setText("Plot läuft (Befehle werden live gesendet) …")
 
     def _validate_for_export(self):
