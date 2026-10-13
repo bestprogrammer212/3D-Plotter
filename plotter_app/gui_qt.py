@@ -634,6 +634,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
         adopt = QtWidgets.QPushButton("Aktuelle Höhe = Zeichen-Z")
         adopt.clicked.connect(self._adopt_pen_height)
         wf.addWidget(adopt, 1, 0, 1, 2)
+        xy_test_btn = QtWidgets.QPushButton("XY-Offset testen …")
+        xy_test_btn.clicked.connect(self._xy_offset_test)
+        wf.addWidget(xy_test_btn, 6, 0)
+        z_test_btn = QtWidgets.QPushButton("Z-Höhe testen …")
+        z_test_btn.clicked.connect(self._z_height_test)
+        wf.addWidget(z_test_btn, 6, 1)
         wf.addWidget(QtWidgets.QLabel("Zeichen-Z:"), 2, 0)
         self.pen_draw_spin = self._dspin(-50, 200, self.pen.pen_draw_z)
         self.pen_draw_spin.setValue(self.pen.pen_draw_z)
@@ -675,6 +681,103 @@ class PlotterWindow(QtWidgets.QMainWindow):
     def _sync_pen_spins(self):
         self.pen_draw_spin.setValue(self.pen.pen_draw_z)
         self.pen_up_spin.setValue(self.pen.pen_up_z)
+
+    def _xy_offset_test(self):
+        """Gefuehrter XY-Offset-Test: Stift faehrt zur Papier-Mitte,
+        der Nutzer klickt auf die Platte, wo die Spitze WIRKLICH landet,
+        daraus wird der X/Y-Offset berechnet."""
+        if not self.connection or not self.connection.is_connected():
+            QtWidgets.QMessageBox.warning(self, "XY-Test", "Keine Verbindung zum Drucker.")
+            return
+        if not self.calibration.is_complete:
+            QtWidgets.QMessageBox.warning(
+                self, "XY-Test", "Bitte zuerst die Ecken kalibrieren (mindestens 3).")
+            return
+        btn = QtWidgets.QMessageBox.question(
+            self, "XY-Offset testen",
+            "Der Stift f\u00e4hrt zur Papier-Mitte.\n\n"
+            "Danach auf die Druckplatte klicken, wo die Stiftspitze WIRKLICH "
+            "landet (nicht wo sie sein sollte).\n\n Fortfahren?")
+        if btn != QtWidgets.QMessageBox.Yes:
+            return
+        cx, cy = self.calibration.paper_to_machine(0.5, 0.5)
+        # Nozzle-Ziel wie beim Plotten: Sollpunkt minus aktuellem Offset
+        self.connection.move_absolute(
+            cx - self.pen.pen_offset_x, cy - self.pen.pen_offset_y)
+        self._xy_test_target = (cx, cy)
+        self._xy_test_active = True
+        self.statusBar().showMessage(
+            "Jetzt auf die Platte klicken, wo die Stiftspitze wirklich ist …", 15000)
+
+    def _z_height_test(self):
+        """Gefuehrter Z-Test (Papier-Feeler): Stift zur Mitte, dann in
+        kleinen Schritten absenken, bis das Papier gerade noch durchgleitet.
+        Diese Hoehe wird als Zeichen-Z uebernommen."""
+        if not self.connection or not self.connection.is_connected():
+            QtWidgets.QMessageBox.warning(self, "Z-Test", "Keine Verbindung zum Drucker.")
+            return
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Z-H\u00f6he testen (Papier-Feeler)")
+        v = QtWidgets.QVBoxLayout(dlg)
+        info = QtWidgets.QLabel(
+            "1. 'Zur Papier-Mitte' dr\u00fccken.\n"
+            "2. Papier unter die Stiftspitze schieben.\n"
+            "3. Mit '-0.1' / '-1' langsam absenken, bis das Papier gerade "
+            "noch unter der Spitze durchgleitet ('+1' korrigiert nach oben).\n"
+            "4. '\u00dcbernehmen' setzt die aktuelle H\u00f6he als Zeichen-Z "
+            "(Stift hoch = Zeichen-Z + 5 mm).")
+        info.setWordWrap(True)
+        v.addWidget(info)
+        self._ztest_label = QtWidgets.QLabel("Z \u2248 –")
+        v.addWidget(self._ztest_label)
+        row = QtWidgets.QHBoxLayout()
+
+        def refresh_z():
+            self.connection.request_position(
+                lambda pos, err: on_main_thread(
+                    lambda: self._ztest_label.setText(
+                        f"Z \u2248 {pos[2]:.2f} mm"
+                        if pos and pos[2] is not None else "Z unbekannt")))
+
+        def go_center():
+            if self.calibration.is_complete:
+                cx, cy = self.calibration.paper_to_machine(0.5, 0.5)
+                self.connection.move_absolute(
+                    cx - self.pen.pen_offset_x, cy - self.pen.pen_offset_y)
+                QtCore.QTimer.singleShot(500, refresh_z)
+
+        def dz(step):
+            self.connection.jog(z=step)
+            QtCore.QTimer.singleShot(300, refresh_z)
+
+        def adopt():
+            def cb(pos, err):
+                def apply():
+                    if err or not pos or pos[2] is None:
+                        QtWidgets.QMessageBox.warning(
+                            self, "Z-Test", "Position konnte nicht gelesen werden.")
+                        return
+                    self.pen.auto_from_pen_touch(pos[2])
+                    self._sync_pen_spins()
+                    self.statusBar().showMessage(
+                        f"Zeichen-Z = {pos[2]:.2f} mm \u00fcbernommen", 5000)
+                    dlg.close()
+                on_main_thread(apply)
+            self.connection.request_position(cb)
+
+        for text, cmd in (("Zur Papier-Mitte", go_center),
+                          ("+1 mm", lambda: dz(1.0)),
+                          ("-1 mm", lambda: dz(-1.0)),
+                          ("-0.1 mm", lambda: dz(-0.1)),
+                          ("\u00dcbernehmen", adopt)):
+            b = QtWidgets.QPushButton(text)
+            b.clicked.connect(cmd)
+            row.addWidget(b)
+        v.addLayout(row)
+        close = QtWidgets.QPushButton("Schlie\u00dfen")
+        close.clicked.connect(dlg.close)
+        v.addWidget(close)
+        dlg.exec()
 
     def _mount_preset(self, offset):
         self.pen.pen_offset_z = offset
@@ -988,7 +1091,22 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
     def _move_to(self, pos):
         """Faehrt den Stift (bei aktiver Verbindung) zur Bett-Position;
-        nach der Fahrt wird die Position zur Anzeige neu gelesen."""
+        nach der Fahrt wird die Position zur Anzeige neu gelesen.
+
+        Im XY-Test-Modus bedeutet der Klick stattdessen: 'Hier landet die
+        Stiftspitte wirklich' -> daraus wird der X/Y-Offset berechnet.
+        """
+        if getattr(self, "_xy_test_active", False):
+            self._xy_test_active = False
+            tx, ty = self._xy_test_target
+            # true_offset = alter_Offset + (Klick - Sollpunkt)
+            off_x = self.pen.pen_offset_x + (pos[0] - tx)
+            off_y = self.pen.pen_offset_y + (pos[1] - ty)
+            self.pen_off_x_spin.setValue(off_x)
+            self.pen_off_y_spin.setValue(off_y)
+            self.statusBar().showMessage(
+                f"Stift-Offset kalibriert: X={off_x:+.2f} mm  Y={off_y:+.2f} mm", 8000)
+            return
         if not self.bed_click_moves.isChecked() or not self.connection:
             return
         if not self.connection.is_connected():
