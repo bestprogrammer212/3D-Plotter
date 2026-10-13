@@ -317,13 +317,15 @@ class BedCanvas(QtWidgets.QWidget):
         return None
 
     def mousePressEvent(self, e):
-        """Klick auf das Bett = ungefaehre Position fuer Ecken-Kalibrierung."""
+        """Klick auf das Bett = ungefaehre Position fuer Ecken-Kalibrierung;
+        optional faehrt der Stift sofort dorthin."""
         pos = self._pos_from_click(e)
         if pos is None:
             return
         app = self.app
         app.cal_x.setValue(pos[0])
         app.cal_y.setValue(pos[1])
+        app._move_to(pos)
         app.statusBar().showMessage(
             f"Bett-Klick: X={pos[0]:.1f} Y={pos[1]:.1f} (mit WASD/RF verfeinern)", 5000)
 
@@ -509,6 +511,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.corner_list = QtWidgets.QListWidget()
         self.corner_list.itemClicked.connect(self._corner_clicked)
         form.addWidget(self.corner_list, 2, 0, 1, 6)
+        self.bed_click_moves = QtWidgets.QCheckBox("Beim Klick auf die Platte dorthin fahren")
+        self.bed_click_moves.setChecked(True)
+        self.bed_click_moves.setToolTip(
+            "Klick auf das Bett: Stift faehrt an diese Position (bei aktiver Verbindung)\n"
+            "und die Werte werden fuer die Ecke uebernommen.")
+        form.addWidget(self.bed_click_moves, 3, 0, 1, 6)
         left.addWidget(gb)
 
         wiz = QtWidgets.QGroupBox("Stift-Höhe")
@@ -873,6 +881,20 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.pen_pos = (pos[0], pos[1])
         if hasattr(self, "bed_canvas"):
             self.bed_canvas.update()
+
+    def _move_to(self, pos):
+        """Faehrt den Stift (bei aktiver Verbindung) zur Bett-Position;
+        nach der Fahrt wird die Position zur Anzeige neu gelesen."""
+        if not self.bed_click_moves.isChecked() or not self.connection:
+            return
+        if not self.connection.is_connected():
+            self.statusBar().showMessage(
+                "Keine Verbindung – Klick setzt nur die Werte", 3000)
+            return
+        self.connection.move_absolute(pos[0], pos[1],
+                                      callback=lambda r, e: on_main_thread(self._refresh_position))
+        self.statusBar().showMessage(
+            f"Fahre zu X={pos[0]:.1f} Y={pos[1]:.1f} ...", 3000)
 
     def _jog(self, dx, dy, dz):
         if not self.connection:
