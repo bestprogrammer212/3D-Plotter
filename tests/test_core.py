@@ -9,7 +9,7 @@ import time
 import unittest
 
 from plotter_app.calibration import Calibration
-from plotter_app.gcode import export_gcode
+from plotter_app.gcode import export_gcode, plot_command_groups
 from plotter_app.network import MoonrakerConnection, OctoPrintConnection, PrinterConnectionError, create_connection
 from plotter_app.pen import PenSettings
 from plotter_app.profiles import load_printer_profile
@@ -76,6 +76,25 @@ class TestGcode(unittest.TestCase):
         self.assertLess(second_up, second_g0)
         self.assertNotIn(f"G1 Z{pen.pen_draw_z + pen.z_lift_between_paths:.2f}", g)  # kein lift zwischen Pfaden
 
+
+    def test_plot_command_groups_pen_safe(self):
+        """Live-Plot: nur XY homen, Stift HOCH als erstes Kommando."""
+        cal = Calibration()
+        for p in [(0, 0), (100, 0), (100, 100), (0, 100)]:
+            cal.add_point(*p)
+        pen = PenSettings()
+        groups = plot_command_groups([[(0.1, 0.1), (0.9, 0.1)]], cal, pen)
+        head = groups[0]
+        self.assertIn("G28 X Y", head)
+        self.assertNotIn("G28\n", "\n".join(head))  # kein Home-All (Z-Crash-Gefahr)
+        # pen-up kommt VOR jeder Bewegung: keine G0/G1-X/Y-Zeile davor
+        idx_up = head.index(f"G1 Z{pen.pen_up_z:.2f} F{pen.travel_speed * 60:.0f}")
+        self.assertFalse(any(l.startswith(("G0 ", "G1 X", "G1 Y")) for l in head[:idx_up]))
+        # die erste Fahrt (Gruppe 1) beginnt mit pen-up
+        self.assertTrue(groups[1][0].startswith(f"G1 Z{pen.pen_up_z:.2f}"))
+        # eine Gruppe pro Pfad + head + finale Gruppe
+        self.assertEqual(len(groups), 3)
+        self.assertIn("M84", groups[-1][-1])
 
     def test_pen_xy_offset_in_gcode(self):
         """Stift-X/Y-Offset: die Nozzle faehrt um den Offset versetzt,

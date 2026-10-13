@@ -163,6 +163,39 @@ class QueuedConnection:
             if callback:
                 callback(None, str(e))
 
+    def plot_groups(self, groups, callback=None):
+        """Plot per Einzelbefehlen statt G-Code-Upload: eine Gruppe pro Pfad.
+
+        Die Gruppen werden verkettet einzeln gesendet: erst wenn eine Gruppe
+        erfolgreich war, wird die naechste geschickt. Bei einem Fehler stoppt
+        der Plot sofort (kein unkontrolliertes Weiterzeichnen nach Reconnect);
+        der finale Callback feuert genau einmal mit dem Fehler.
+        """
+        state = {"i": 0, "done": False}
+
+        def send_next():
+            i = state["i"]
+            if i >= len(groups):
+                if callback and not state["done"]:
+                    state["done"] = True
+                    callback(True, None)
+                return
+
+            def group_cb(ok, err):
+                if state["done"]:
+                    return
+                if err:
+                    state["done"] = True
+                    if callback:
+                        callback(None, err)
+                    return
+                state["i"] += 1
+                send_next()
+
+            self._submit("send_script", "\n".join(groups[i]), callback=group_cb, replay=False)
+
+        send_next()
+
     def upload_and_start(self, gcode, filename="plot_job.gcode", callback=None):
         """Upload blockiert bewusst (große Datenmenge), aber mit Callback-Ergebnis."""
         def work():

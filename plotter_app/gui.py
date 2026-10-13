@@ -5,7 +5,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from . import tools
 from .calibration import Calibration
-from .gcode import export_gcode
+from .gcode import plot_command_groups
 from .network import PrinterConnectionError, create_connection
 from .gcode import save_gcode
 from .pen import PenSettings
@@ -684,14 +684,16 @@ class PlotterApp(tk.Tk):
         if not messagebox.askyesno("Plot starten", "Plotten jetzt über IP starten?\nStift montiert und Papier aufgelegt?"):
             return
         paths = tools.optimize_paths(self.paths) if self._do_optimize.get() else self.paths
-        gcode = export_gcode(paths, self.calibration, self.pen, header_comment="IP Plot Job")
-        try:
-            self.connection.upload_and_start(gcode)
-            self.plot_ip_label.config(text="Plot gestartet ✓")
-            messagebox.showinfo("Plot", "Plot wurde über IP gestartet.")
-        except PrinterConnectionError as e:
-            self.plot_ip_label.config(text="")
-            messagebox.showerror("Netzwerkfehler", str(e))
+        groups = plot_command_groups(paths, self.calibration, self.pen)
+
+        def cb(ok, err):
+            if err:
+                self.plot_ip_label.config(text="")
+                messagebox.showerror("Netzwerkfehler", str(err))
+            else:
+                self.plot_ip_label.config(text="Plot beendet ✓")
+        self.plot_ip_label.config(text="Plot läuft (Befehle werden live gesendet) …")
+        self.connection.plot_groups(groups, callback=cb)
 
 
     def _emergency_stop(self):
