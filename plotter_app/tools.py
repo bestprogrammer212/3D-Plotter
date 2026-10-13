@@ -387,6 +387,44 @@ def _pixel_path_to_paper(pts, w, h, paper_w, paper_h):
     return out
 
 
+def _mask_contours(mask, w, h):
+    """Konturen einer binaeren Maske als Pixel-Polygone (geschlossen).
+
+    Bevorzugt OpenCV (cv2.findContours + cv2.approxPolyDP): praezise
+    Konturverfolgung inkl. Loechern (RETR_CCOMP), robuste Punkt-Reduktion
+    per Douglas-Peucker mit perimeter-relativer Toleranz – der Standard-Weg
+    zum Vektorisieren fuer Plotter. Ohne cv2 greift der eingebaute
+    Marching-Squares-Tracer als Fallback.
+    """
+    cv2_contours = _cv2_mask_contours(mask, w, h)
+    if cv2_contours is not None:
+        return cv2_contours
+    return _trace_mask_paths(mask, w, h)
+
+
+def _cv2_mask_contours(mask, w, h):
+    try:
+        import numpy as np
+        import cv2
+    except ImportError:
+        return None
+    img = np.asarray(mask, dtype=np.uint8).reshape(h, w) * 255
+    contours, _hierarchy = cv2.findContours(
+        img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    out = []
+    for c in contours:
+        if len(c) < 4:
+            continue
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, max(0.8, 0.002 * peri), True)
+        pts = [(int(p[0][0]), int(p[0][1])) for p in approx]
+        if len(pts) >= 4:
+            if pts[0] != pts[-1]:
+                pts.append(pts[0])
+            out.append(pts)
+    return out
+
+
 def _load_image_filtered(filename, resolution, mode):
     """Bild laden, verkleinern (LANCZOS) und um Rauschen bereinigen
     (Median-Filter): sauberere Farb- bzw. Graustufen-Grenzen fuer den Tracer."""
@@ -419,7 +457,7 @@ def trace_image(filename, resolution=96, threshold=128, paper_w=1.0, paper_h=1.0
     w, h = img.size
     mask = [px[x, y] < threshold for y in range(h) for x in range(w)]
     paths = []
-    for contour in _trace_mask_paths(mask, w, h):
+    for contour in _mask_contours(mask, w, h):
         if len(contour) < 4:
             continue
         pts = _pixel_path_to_paper(contour, w, h, paper_w, paper_h)
@@ -580,7 +618,7 @@ def trace_image_colored(filename, resolution=96, max_colors=6,
         if not any(mask):
             done.add(target)
             continue
-        contours = _trace_mask_paths(mask, w, h)
+        contours = _mask_contours(mask, w, h)
         kept = 0
         for c in contours:
             pts = _pixel_path_to_paper(c, w, h, paper_w, paper_h)
