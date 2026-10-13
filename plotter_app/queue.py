@@ -118,6 +118,11 @@ class QueuedConnection:
                     self._queue.put(task)
                 elif callback:
                     callback(None, str(e))
+            except Exception as e:
+                # Unerwarteter Fehler (z. B. defekte Server-Antwort):
+                # nicht crashen, sondern als Fehler melden
+                if callback:
+                    callback(None, str(e))
 
     def _get_conn(self):
         with self._lock:
@@ -169,6 +174,9 @@ class QueuedConnection:
             except PrinterConnectionError as e:
                 if callback:
                     callback(None, str(e))
+            except Exception as e:  # unerwartete Fehler duerfen den Thread nicht toeten
+                if callback:
+                    callback(None, f"Upload-Fehler: {e}")
         threading.Thread(target=work, daemon=True).start()
 
     def is_printing(self, callback):
