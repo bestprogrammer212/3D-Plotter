@@ -9,11 +9,12 @@ import time
 import unittest
 
 from plotter_app.calibration import Calibration
-from plotter_app.gcode import export_gcode, plot_command_groups
+from plotter_app.gcode import color_segments, export_gcode, plot_command_groups
 from plotter_app.network import MoonrakerConnection, OctoPrintConnection, PrinterConnectionError, create_connection
 from plotter_app.pen import PenSettings
 from plotter_app.profiles import load_printer_profile
 from plotter_app.svg import load_svg
+from plotter_app.tools import optimize_paths_colored
 
 
 class TestCalibration(unittest.TestCase):
@@ -95,6 +96,45 @@ class TestGcode(unittest.TestCase):
         # eine Gruppe pro Pfad + head + finale Gruppe
         self.assertEqual(len(groups), 3)
         self.assertIn("M84", groups[-1][-1])
+
+    def test_color_segments(self):
+        segs = color_segments(["#ff0000", "#ff0000", "#00ff00", None, None, "#00ff00"])
+        self.assertEqual(segs, [("#ff0000", [0, 1]), ("#00ff00", [2]), ("", [3, 4]), ("#00ff00", [5])])
+
+    def test_plot_command_groups_color_pause(self):
+        """Bei Farbwechsel gibt es einen ('pause', farbe)-Marker VOR der neuen Farbe."""
+        cal = Calibration()
+        for p in [(0, 0), (100, 0), (100, 100), (0, 100)]:
+            cal.add_point(*p)
+        pen = PenSettings()
+        paths = [[(0.1, 0.1), (0.9, 0.1)], [(0.2, 0.8), (0.8, 0.2)]]
+        items = plot_command_groups(paths, cal, pen,
+                                    colors=["#ff0000", "#00ff00"])
+        markers = [it for it in items if isinstance(it, tuple)]
+        self.assertEqual(len(markers), 1)
+        self.assertEqual(markers[0], ("pause", "#00ff00"))
+        # Marker liegt nach dem ersten Pfad (Index nach head + Gruppe 1)
+        self.assertEqual(items.index(("pause", "#00ff00")), 2)
+
+    def test_plot_command_groups_no_pause_single_color(self):
+        cal = Calibration()
+        for p in [(0, 0), (100, 0), (100, 100), (0, 100)]:
+            cal.add_point(*p)
+        pen = PenSettings()
+        paths = [[(0.1, 0.1), (0.9, 0.1)], [(0.2, 0.8), (0.8, 0.2)]]
+        items = plot_command_groups(paths, cal, pen, colors=["#ff0000", "#ff0000"])
+        self.assertFalse(any(isinstance(it, tuple) for it in items))
+
+    def test_optimize_paths_colored(self):
+        """Farb-Pfade bleiben parallel; gleiche Farbe wird bevorzugt."""
+        paths = [[(0.1, 0.1), (0.9, 0.1)], [(0.2, 0.8), (0.8, 0.2)], [(0.91, 0.1), (0.95, 0.1)]]
+        colors = ["#ff0000", "#00ff00", "#ff0000"]
+        op, oc = optimize_paths_colored(paths, colors)
+        self.assertEqual(len(op), 3)
+        self.assertEqual(sorted(oc), sorted(colors))
+        # Paarung stimmt noch
+        for p, c in zip(op, oc):
+            self.assertEqual(colors[paths.index(p)], c)
 
     def test_pen_xy_offset_in_gcode(self):
         """Stift-X/Y-Offset: die Nozzle faehrt um den Offset versetzt,

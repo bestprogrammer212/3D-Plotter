@@ -51,6 +51,40 @@ def plot_command_groups(paths, calibration: Calibration, pen: PenSettings):
     return groups
 
 
+def color_segments(colors):
+    """Farbliste -> aufeinanderfolgende Segmente [(farbe, [indizes]), ...].
+    None/'' wird als 'keine Farbe' behandelt (immer ein eigenes Segment)."""
+    segments = []
+    for i, c in enumerate(colors):
+        c = c or ""
+        if segments and segments[-1][0] == c:
+            segments[-1][1].append(i)
+        else:
+            segments.append((c, [i]))
+    return segments
+
+
+def plot_command_groups(paths, calibration: Calibration, pen: PenSettings,
+                        colors=None):
+    """Befehls-Gruppen fuer das LIVE-Plotten (Senden per Einzelbefehl).
+
+    items: Liste von Befehls-Listen; zwischen Farbsegmenten wird ein
+    Pause-Marker ('pause', farbe) eingefuegt – der Plot stoppt dort,
+    bis der Nutzer den Farbwechsel bestaetigt.
+    """
+    head = ["G90", "G21", "G28 X Y", "M107"]
+    head.extend(pen.up_gcode())
+    items = [head]
+    segments = color_segments(colors or [None] * len(paths))
+    for si, (color, idxs) in enumerate(segments):
+        seg_paths = [paths[i] for i in idxs]
+        if color and si > 0:
+            items.append(("pause", color))
+        items.extend(_draw_groups(seg_paths, calibration, pen))
+    items.append(pen.up_gcode() + ["G0 X0 Y0", "M84"])
+    return items
+
+
 def export_gcode(paths, calibration: Calibration, pen: PenSettings,
                  header_comment="Plotter Job", home_all=True):
     """paths: Liste von Polylines [(px, py), ...] in Papier-Einheiten 0..1."""
