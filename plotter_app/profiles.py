@@ -28,6 +28,13 @@ def load_builtin():
     return list(BUILTIN_PRINTERS)
 
 
+def _as_float(v, default=0.0):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
 def load_printer_profile(path):
     """OrcaSlicer machine-JSON einlesen; erkennt gängige Feldnamen."""
     with open(path, "r", encoding="utf-8") as f:
@@ -41,10 +48,30 @@ def load_printer_profile(path):
         return default
 
     name = pick("printer_model", "printer_model_id", default=os.path.basename(path))
+
+    # OrcaSlicer "printable_area" ist eine LISTE von Ecken [[0,0],[220,0],...]
+    # -> bed_x = max x, bed_y = max y daraus extrahieren.
+    bed_x = bed_y = None
+    area = pick("printable_area", default=None)
+    if isinstance(area, list) and area:
+        xs, ys = [], []
+        for corner in area:
+            if isinstance(corner, (list, tuple)) and len(corner) >= 2:
+                xs.append(_as_float(corner[0]))
+                ys.append(_as_float(corner[1]))
+        if xs:
+            bed_x = max(xs)
+        if ys:
+            bed_y = max(ys)
+    if bed_x is None:
+        bed_x = _as_float(pick("x_size", "bed_size", default=200), 200)
+    if bed_y is None:
+        bed_y = _as_float(pick("y_size", "bed_size", default=200), 200)
+
     return {
         "name": str(name),
-        "bed_x": pick("printable_area", "bed_size", "x_size", default=200),
-        "bed_y": pick("bed_size", "y_size", default=200),
-        "bed_z": pick("printable_height", "z_size", default=200),
-        "max_speed": pick("max_speed", default=180),
+        "bed_x": bed_x,
+        "bed_y": bed_y,
+        "bed_z": _as_float(pick("printable_height", "z_size", default=200), 200),
+        "max_speed": _as_float(pick("max_speed", default=180), 180),
     }

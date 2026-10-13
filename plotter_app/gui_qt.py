@@ -4,6 +4,8 @@ import sys
 
 from PySide6 import QtCore, QtGui, QtWidgets
 
+from datetime import datetime
+
 from . import settings, tools
 from .calibration import Calibration
 from .gcode import export_gcode, save_gcode
@@ -114,6 +116,91 @@ class PaperCanvas(QtWidgets.QWidget):
         self.update()
 
 
+class DesignCanvas(QtWidgets.QWidget):
+    """Druckplatte mit kalibriertem Papier-Polygon und den Design-Pfaden
+    in ihrer echten Plot-Position auf dem Bett."""
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+        self.setMinimumHeight(320)
+        self.setMouseTracking(True)
+
+    def paintEvent(self, _event):
+        p = QtGui.QPainter(self)
+        p.setRenderHint(QtGui.QPainter.Antialiasing)
+        w, h = self.width(), self.height()
+        p.fillRect(0, 0, w, h, QtGui.QColor("#151619"))
+
+        cal = self.app.calibration
+        bw = self.app.current_printer["bed_x"] if self.app.current_printer else 220.0
+        bh = self.app.current_printer["bed_y"] if self.app.current_printer else 220.0
+
+        margin = 16
+        scale = min((w - 2 * margin) / bw, (h - 2 * margin) / bh)
+        ox = (w - bw * scale) / 2
+        oy = (h - bh * scale) / 2
+
+        # Druckplatte
+        p.setPen(QtGui.QPen(QtGui.QColor("#555"), 2))
+        p.setBrush(QtGui.QColor("#202226"))
+        p.drawRect(QtCore.QRectF(ox, oy, bw * scale, bh * scale))
+        p.setPen(QtGui.QPen(QtGui.QColor("#333"), 1))
+        for g in range(0, int(bw) + 1, 50):
+            x = ox + g * scale
+            p.drawLine(QtCore.QLineF(x, oy, x, oy + bh * scale))
+        for g in range(0, int(bh) + 1, 50):
+            y = oy + (bh - g) * scale
+            p.drawLine(QtCore.QLineF(ox, y, ox + bw * scale, y))
+
+        # Papier-Polygon (falls kalibriert): Design in echter Position zeichnen
+        paths = self.app.paths + ([self.app.free_path] if self.app.free_path else [])
+        if cal.is_complete:
+            poly = QtGui.QPolygonF()
+            for (x, y) in cal.polygon:
+                poly.append(QtCore.QPointF(ox + x * scale, oy + (bh - y) * scale))
+            p.setPen(QtCore.Qt.NoPen)
+            p.setBrush(QtGui.QColor(255, 243, 32, 60))
+            p.drawPolygon(poly)
+            p.setPen(QtGui.QPen(QtGui.QColor("#c6a700"), 1, QtCore.Qt.DashLine))
+            p.drawPolygon(poly)
+
+            # Design-Pfade auf das kalibrierte Papier gemappt
+            p.setPen(QtGui.QPen(QtGui.QColor("#1565c0"), 2))
+            for path in paths:
+                if len(path) < 2:
+                    continue
+                poly2 = QtGui.QPolygonF()
+                for (px, py) in path:
+                    mx, my = cal.paper_to_machine(px, py)
+                    poly2.append(QtCore.QPointF(ox + mx * scale, oy + (bh - my) * scale))
+                p.drawPolyline(poly2)
+        else:
+            p.setPen(QtGui.QPen(QtGui.QColor("#9aa0aa")))
+            p.drawText(QtCore.QRectF(ox, oy, bw * scale, bh * scale),
+                       QtCore.Qt.AlignCenter,
+                       "Noch nicht kalibriert\nDesign wird erst nach der\nEcken-Kalibrierung "
+                       "auf dem Bett angezeigt.")
+            # Design ohne Kalibrierung klein andeuten
+            p.setPen(QtGui.QPen(QtGui.QColor("#1565c0"), 1, QtCore.Qt.DashLine))
+            for path in paths:
+                if len(path) < 2:
+                    continue
+                poly2 = QtGui.QPolygonF()
+                for (px, py) in path:
+                    poly2.append(QtCore.QPointF(ox + px * bw * scale,
+                                                oy + (1 - py) * bh * scale))
+                p.drawPolyline(poly2)
+
+        # Stift-Position (klein)
+        if self.app.pen_pos:
+            px, py = self.app.pen_pos
+            p.setPen(QtGui.QPen(QtGui.QColor("#e65100"), 2))
+            p.setBrush(QtGui.QColor("#ff9800"))
+            p.drawEllipse(QtCore.QPointF(ox + px * scale, oy + (bh - py) * scale), 5, 5)
+        p.end()
+
+
 class BedCanvas(QtWidgets.QWidget):
     """Bett-Vorschau mit kalibrierten Ecken (im Uhrzeigersinn) und Stift-Position."""
 
@@ -178,6 +265,43 @@ class BedCanvas(QtWidgets.QWidget):
             p.drawEllipse(QtCore.QPointF(cx, cy), 6, 6)
         p.end()
 
+    def _geom(self):
+        """Bett-Geometrie (wie in paintEvent) fuer Maus-Konvertierung."""
+        w, h = self.width(), self.height()
+        bw = self.app.current_printer["bed_x"] if self.app.current_printer else 250.0
+        bh = self.app.current_printer["bed_y"] if self.app.current_printer else 250.0
+        cal = self.app.calibration
+        if cal.points:
+            xs = [pt[0] for pt in cal.points]
+            ys = [pt[1] for pt in cal.points]
+            bw = max(bw, max(xs) + 10)
+            bh = max(bh, max(ys) + 10)
+        margin = 16
+        scale = min((w - 2 * margin) / bw, (h - 2 * margin) / bh)
+        ox = (w - bw * scale) / 2
+        oy = (h - bh * scale) / 2
+        return bw, bh, scale, ox, oy
+
+    def _pos_from_click(self, e):
+        """Klick-Punkt -> Bett-Koordinaten (x, y); None wenn ausserhalb."""
+        bw, bh, scale, ox, oy = self._geom()
+        x = (e.position().x() - ox) / scale
+        y = bh - (e.position().y() - oy) / scale
+        if 0 <= x <= bw and 0 <= y <= bh:
+            return (x, y)
+        return None
+
+    def mousePressEvent(self, e):
+        """Klick auf das Bett = ungefaehre Position fuer Ecken-Kalibrierung."""
+        pos = self._pos_from_click(e)
+        if pos is None:
+            return
+        app = self.app
+        app.cal_x.setValue(pos[0])
+        app.cal_y.setValue(pos[1])
+        app.statusBar().showMessage(
+            f"Bett-Klick: X={pos[0]:.1f} Y={pos[1]:.1f} (mit WASD/RF verfeinern)", 5000)
+
 
 class PlotterWindow(QtWidgets.QMainWindow):
     @staticmethod
@@ -204,6 +328,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.free_path = None
         self.pen_pos = None
         self._poll_fail = 0
+        self._poll_active = True
         self._load_settings()
 
         # Zentrale Elemente
@@ -215,6 +340,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self._build_calibration_tab()
         self._build_design_tab()
         self._build_export_tab()
+        self._install_jog_shortcuts()
         self._start_polling()
 
     # ---------- Toolbar ----------
@@ -228,6 +354,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
         spacer = QtWidgets.QWidget()
         spacer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         bar.addWidget(spacer)
+        bar.addWidget(QtWidgets.QLabel("Schritt:"))
+        self.step_combo = QtWidgets.QComboBox()
+        for s in ("0.1", "1", "10", "50"):
+            self.step_combo.addItem(f"{s} mm", float(s))
+        self.step_combo.setCurrentIndex(2)
+        bar.addWidget(self.step_combo)
         self.status_position = QtWidgets.QLabel("X –  Y –  Z –")
         bar.addWidget(self.status_position)
 
@@ -258,14 +390,8 @@ class PlotterWindow(QtWidgets.QMainWindow):
         form.addWidget(self.conn_label, 4, 0, 1, 2)
         layout.addWidget(gb, 0, 0)
 
-        jog = QtWidgets.QGroupBox("Stift bewegen (WASD = X/Y, R/F = Z)")
+        jog = QtWidgets.QGroupBox("Stift bewegen (WASD = X/Y, R/F = Z – gilt ueberall, Schritt in der Toolbar)")
         jf = QtWidgets.QGridLayout(jog)
-        self.step_combo = QtWidgets.QComboBox()
-        for s in ("0.1", "1", "10", "50"):
-            self.step_combo.addItem(f"{s} mm", float(s))
-        self.step_combo.setCurrentIndex(2)
-        jf.addWidget(QtWidgets.QLabel("Schritt:"), 0, 0, 1, 2)
-        jf.addWidget(self.step_combo, 0, 2)
         btns = {
             "Y+": (0, 1, lambda: self._jog(0, 1, 0)), "Y-": (2, 1, lambda: self._jog(0, -1, 0)),
             "X-": (1, 0, lambda: self._jog(-1, 0, 0)), "X+": (1, 2, lambda: self._jog(1, 0, 0)),
@@ -300,6 +426,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.printer_list.itemClicked.connect(self._select_printer)
         layout.addWidget(self.printer_list)
         self._filter_printers()
+        self._select_saved_printer()
         self.tabs.addTab(tab, f"Drucker ({len(self.printers)})")
 
     def _filter_printers(self):
@@ -309,6 +436,18 @@ class PlotterWindow(QtWidgets.QMainWindow):
             if q and q not in p["name"].lower() and q not in p.get("vendor", "").lower():
                 continue
             self.printer_list.addItem(f"{p['name']}  —  Bett {p['bed_x']}×{p['bed_y']}×{p['bed_z']} mm")
+
+    def _select_saved_printer(self):
+        """Gespeicherten Drucker aus den Einstellungen wieder selektieren."""
+        name = getattr(self, "_saved_printer", None)
+        if not name:
+            return
+        for row in range(self.printer_list.count()):
+            if self.printer_list.item(row).text().split("  \u2014")[0] == name:
+                self.printer_list.setCurrentRow(row)
+                self.current_printer = next(
+                    (p for p in self.printers if p["name"] == name), None)
+                return
 
     def _select_printer(self, item):
         idx = self.printer_list.row(item)
@@ -338,8 +477,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
         form.addWidget(read_btn, 1, 0, 1, 3)
         add_btn = QtWidgets.QPushButton("Ecke übernehmen")
         add_btn.clicked.connect(self._add_corner)
-        form.addWidget(add_btn, 1, 3, 1, 3)
+        form.addWidget(add_btn, 1, 3, 1, 2)
+        del_btn = QtWidgets.QPushButton("Ecke löschen")
+        del_btn.clicked.connect(self._delete_corner)
+        form.addWidget(del_btn, 1, 5)
         self.corner_list = QtWidgets.QListWidget()
+        self.corner_list.itemClicked.connect(self._corner_clicked)
         form.addWidget(self.corner_list, 2, 0, 1, 6)
         left.addWidget(gb)
 
@@ -359,6 +502,16 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.pen_draw_spin.setValue(self.pen.pen_draw_z)
         self.pen_draw_spin.valueChanged.connect(self._pen_spin_changed)
         wf.addWidget(self.pen_draw_spin, 2, 1)
+        wf.addWidget(QtWidgets.QLabel("Stift-Offset X (mm):"), 4, 0)
+        self.pen_off_x_spin = self._dspin(-100, 100, self.pen.pen_offset_x)
+        self.pen_off_x_spin.setValue(self.pen.pen_offset_x)
+        self.pen_off_x_spin.valueChanged.connect(self._pen_offset_changed)
+        wf.addWidget(self.pen_off_x_spin, 4, 1)
+        wf.addWidget(QtWidgets.QLabel("Stift-Offset Y (mm):"), 5, 0)
+        self.pen_off_y_spin = self._dspin(-100, 100, self.pen.pen_offset_y)
+        self.pen_off_y_spin.setValue(self.pen.pen_offset_y)
+        self.pen_off_y_spin.valueChanged.connect(self._pen_offset_changed)
+        wf.addWidget(self.pen_off_y_spin, 5, 1)
         wf.addWidget(QtWidgets.QLabel("Stift hoch:"), 3, 0)
         self.pen_up_spin = self._dspin(-50, 200, self.pen.pen_up_z)
         self.pen_up_spin.setValue(self.pen.pen_up_z)
@@ -375,6 +528,12 @@ class PlotterWindow(QtWidgets.QMainWindow):
     def _pen_spin_changed(self):
         self.pen.pen_draw_z = self.pen_draw_spin.value()
         self.pen.pen_up_z = self.pen_up_spin.value()
+
+    def _pen_offset_changed(self):
+        self.pen.pen_offset_x = self.pen_off_x_spin.value()
+        self.pen.pen_offset_y = self.pen_off_y_spin.value()
+        if hasattr(self, "design_canvas"):
+            self.design_canvas.update()
 
     def _sync_pen_spins(self):
         self.pen_draw_spin.setValue(self.pen.pen_draw_z)
@@ -393,6 +552,30 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.pen.auto_from_pen_touch(pos[2])
         self._sync_pen_spins()
         self.statusBar().showMessage(f"Zeichen-Z = {pos[2]:.2f} mm", 5000)
+
+    def _delete_corner(self):
+        """Markierte Ecke loeschen; keine Auswahl = letzte Ecke."""
+        row = self.corner_list.currentRow()
+        if row < 0 or row >= len(self.calibration.points):
+            self.calibration.pop_point()
+        else:
+            del self.calibration.points[row]
+            if row < len(self.calibration.heights):
+                del self.calibration.heights[row]
+        self._refresh_corners()
+        if hasattr(self, "design_canvas"):
+            self.design_canvas.update()
+
+    def _corner_clicked(self, item):
+        """Angeklickte Ecke in die X/Y/Z-Felder laden."""
+        row = self.corner_list.row(item)
+        if 0 <= row < len(self.calibration.points):
+            x, y = self.calibration.points[row]
+            self.cal_x.setValue(x)
+            self.cal_y.setValue(y)
+            z = self.calibration.heights[row] if row < len(self.calibration.heights) else None
+            if z is not None:
+                self.cal_z.setValue(z)
 
     def _add_corner(self):
         self.calibration.add_point(self.cal_x.value(), self.cal_y.value(),
@@ -464,8 +647,15 @@ class PlotterWindow(QtWidgets.QMainWindow):
         panel.addStretch()
         layout.addLayout(panel)
 
-        self.paper_canvas = PaperCanvas(self)
-        layout.addWidget(self.paper_canvas, 3)
+        # Rechts: Druckplatte mit kalibriertem Papier-Polygon + Design-Pfaden
+        right = QtWidgets.QVBoxLayout()
+        right.addWidget(QtWidgets.QLabel(
+            "Druckplatte mit Papier (gelb) und Design \u2013 das Design erscheint "
+            "an der Position, an der es sp\u00e4ter geplottet wird:"), 0)
+        self.design_canvas = DesignCanvas(self)
+        right.addWidget(self.design_canvas, 1)
+        layout.addLayout(right, 3)
+        self.paper_canvas = self.design_canvas  # Kompatibilitaet: update() etc.
         self.tabs.addTab(tab, "Design")
 
     def _add_shape(self):
@@ -551,6 +741,8 @@ class PlotterWindow(QtWidgets.QMainWindow):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "G-Code speichern", "plot.gcode", "G-Code (*.gcode *.g *.nc)")
         if not path:
             return
+        if not path.lower().endswith((".gcode", ".g", ".nc")):
+            path += ".gcode"  # fehlende Endung automatisch anhaengen
         paths = tools.optimize_paths(self.paths) if self.optimize_check.isChecked() else self.paths
         save_gcode(path, paths, self.calibration, self.pen)
         self.statusBar().showMessage("G-Code gespeichert", 5000)
@@ -561,11 +753,24 @@ class PlotterWindow(QtWidgets.QMainWindow):
         if not self.connection.is_connected():
             QtWidgets.QMessageBox.warning(self, "Plot", "Keine Verbindung zum Drucker.")
             return
+        # Warnung, wenn gerade ein Druck laeuft (asynchron abfragen, kein GUI-Block)
+        def printing_cb(printing, err):
+            def apply():
+                if printing and QtWidgets.QMessageBox.question(
+                        self, "Laufender Druck",
+                        "Laufender Druck wird abgebrochen, fortfahren?") != QtWidgets.QMessageBox.Yes:
+                    return
+                self._start_ip_plot()
+            QtCore.QTimer.singleShot(0, apply)
+        self.connection.is_printing(printing_cb)
+
+    def _start_ip_plot(self):
         btn = QtWidgets.QMessageBox.question(self, "Plot starten", "Jetzt über IP plotten?")
         if btn != QtWidgets.QMessageBox.Yes:
             return
         paths = tools.optimize_paths(self.paths) if self.optimize_check.isChecked() else self.paths
         gcode = export_gcode(paths, self.calibration, self.pen, header_comment="IP Plot Job")
+        filename = f"plot_{datetime.now():%Y%m%d_%H%M%S}.gcode"
 
         def cb(ok, err):
             def apply():
@@ -574,7 +779,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
                 else:
                     self.statusBar().showMessage("Plot gestartet", 5000)
             QtCore.QTimer.singleShot(0, apply)
-        self.connection.upload_and_start(gcode, callback=cb)
+        self.connection.upload_and_start(gcode, filename=filename, callback=cb)
 
     def _validate_for_export(self):
         if not self.paths:
@@ -591,7 +796,6 @@ class PlotterWindow(QtWidgets.QMainWindow):
         def apply():
             self.conn_label.setText(text)
             self.conn_label.setStyleSheet("color:#66bb6a;" if ok else "color:#ef5350;")
-        QtCore.QMetaObject.invokeMethod(self, "_none", QtCore.Qt.AutoConnection) if False else None
         QtCore.QTimer.singleShot(0, apply)
 
     def _connect(self):
@@ -616,7 +820,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
             self._show_pos(pos)
             self.cal_x.setValue(pos[0])
             self.cal_y.setValue(pos[1])
-            if len(pos) > 2:
+            if pos[2] is not None:
                 self.cal_z.setValue(pos[2])
 
     def _get_pos(self):
@@ -630,14 +834,17 @@ class PlotterWindow(QtWidgets.QMainWindow):
             return
         def cb(pos, err):
             if pos:
-                QtCore.QTimer.singleShot(0, lambda: (self._show_pos(pos),
-                                                    self.cal_x.setValue(pos[0]),
-                                                    self.cal_y.setValue(pos[1]),
-                                                    self.cal_z.setValue(pos[2]) if len(pos) > 2 else None))
+                def apply():
+                    self._show_pos(pos)
+                    self.cal_x.setValue(pos[0])
+                    self.cal_y.setValue(pos[1])
+                    if pos[2] is not None:
+                        self.cal_z.setValue(pos[2])
+                QtCore.QTimer.singleShot(0, apply)
         self.connection.request_position(cb)
 
     def _show_pos(self, pos):
-        z = f"  Z={pos[2]:.2f}" if len(pos) > 2 else ""
+        z = f"  Z={pos[2]:.2f}" if pos[2] is not None else ""
         self.status_position.setText(f"X={pos[0]:.2f}  Y={pos[1]:.2f}{z}")
         self.pen_pos = (pos[0], pos[1])
         if hasattr(self, "bed_canvas"):
@@ -676,24 +883,24 @@ class PlotterWindow(QtWidgets.QMainWindow):
             QtCore.QTimer.singleShot(0, apply)
         self.connection.emergency_stop(callback=cb)
 
-    def keyPressEvent(self, e):
-        """WASD/RF-Steuerung mit Auto-Repeat: Taste halten = smooth bewegen."""
-        if isinstance(self.focusWidget(), (QtWidgets.QLineEdit, QtWidgets.QTextEdit,
-                                          QtWidgets.QSpinBox, QtWidgets.QDoubleSpinBox,
-                                          QtWidgets.QComboBox, QtWidgets.QListWidget)):
-            super().keyPressEvent(e)
-            return
-        key = e.text().lower()
-        mapping = {"w": (0, 1, 0), "s": (0, -1, 0), "a": (-1, 0, 0),
-                   "d": (1, 0, 0), "r": (0, 0, 1), "f": (0, 0, -1)}
-        if key in mapping:
-            self._jog(*mapping[key])
-            # Beim Halten der Taste feuert Qt Auto-Repeat-Events: kontinuierliches Jogen
-            if e.isAutoRepeat():
-                return
-            self._start_hold_jog(mapping[key])
-            return
-        super().keyPressEvent(e)
+    def _install_jog_shortcuts(self):
+        """WASD/RF als anwendungweite Shortcuts: funktionieren auch, wenn ein
+        Textfeld/Spinbox den Fokus hat (diese brauchen keine Buchstaben aus
+        wasdrf). Zusaetzlich 1-4 fuer den Schritt (0.1/1/10/50 mm)."""
+        self._jog_shortcuts = {}
+        for key, direction in (("w", (0, 1, 0)), ("s", (0, -1, 0)),
+                               ("a", (-1, 0, 0)), ("d", (1, 0, 0)),
+                               ("r", (0, 0, 1)), ("f", (0, 0, -1))):
+            sc = QtGui.QShortcut(QtGui.QKeySequence(key), self)
+            sc.setContext(QtCore.Qt.ApplicationShortcut)
+            sc.activated.connect(lambda d=direction: self._jog(*d))
+            sc.activated.connect(lambda d=direction: self._start_hold_jog(d))
+            self._jog_shortcuts[key] = sc
+        for i, step in enumerate(("0.1", "1", "10", "50")):
+            sc = QtGui.QShortcut(QtGui.QKeySequence(str(i + 1)), self)
+            sc.setContext(QtCore.Qt.ApplicationShortcut)
+            sc.activated.connect(lambda idx=i: self.step_combo.setCurrentIndex(idx))
+            self._jog_shortcuts[f"step{i}"] = sc
 
     def keyReleaseEvent(self, e):
         key = e.text().lower()
@@ -703,6 +910,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
     def _start_hold_jog(self, direction):
         """Gehaltene Taste: wiederholt kleine Schritte senden (smooth)."""
+        self._hold_dir = direction
         if getattr(self, "_hold_timer", None):
             return  # läuft schon
         self._hold_dir = direction
@@ -731,6 +939,8 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
     def _start_polling(self):
         def poll():
+            if not self._poll_active:
+                return  # Polling nach Fenster-Schliessen stoppen
             if self.connection and self.connection.is_connected():
                 interval = 350 if getattr(self, "_hold_timer", None) else 1000
                 def cb(pos, err):
@@ -747,6 +957,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         data = settings.load()
         if not data:
             self._saved_kind, self._saved_host = "moonraker", ""
+            self._saved_printer = None
             return
         settings.apply_to(data, self.calibration, self.pen)
         self._saved_printer = data.get("printer")
@@ -763,6 +974,9 @@ class PlotterWindow(QtWidgets.QMainWindow):
             pass
 
     def closeEvent(self, _event):
+        self._poll_active = False  # Positions-Polling stoppen (keine QTimer-Callbacks mehr)
+        if self.connection:
+            self.connection.stop()
         self._save_settings()
 
 

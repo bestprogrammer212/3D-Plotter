@@ -1,21 +1,31 @@
 """Netzwerk-Anbindung: Kalibrieren und Plotten über IP (Moonraker/Klipper und OctoPrint)."""
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
+
+UPLOAD_TIMEOUT = 120  # eigenes Timeout für Uploads großer G-Code-Dateien
 
 
 class PrinterConnectionError(Exception):
     pass
 
 
+def sanitize_filename(name):
+    """Dateinamen säubern: nur [A-Za-z0-9._-] erlaubt."""
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", str(name)).strip("._")
+    return cleaned or "plot_job.gcode"
+
+
 class PrinterConnection:
     """Basis: HTTP-Requests an die Drucker-API."""
 
-    def __init__(self, host, api_key="", timeout=15):
+    def __init__(self, host, api_key="", timeout=15, upload_timeout=UPLOAD_TIMEOUT):
         self.host = host.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        self.upload_timeout = upload_timeout
 
     def _url(self, path):
         return f"{self.host}{path}"
@@ -58,27 +68,18 @@ class MoonrakerConnection(PrinterConnection):
         return h
 
     def get_position(self):
-        """Aktuelle Position des Werkzeugkopfs abfragen; liefert (x, y[, z])."""
+        """Aktuelle Position; liefert IMMER (x, y, z)."""
         res = self._request("POST", "/printer/objects/query",
                             {"objects": {"toolhead": None}}, headers=self._headers())
         pos = (res.get("result", {}).get("status", {})
                .get("toolhead", {}).get("position", []))
         if len(pos) < 2:
             raise PrinterConnectionError("Position konnte nicht gelesen werden (toolhead nicht verfügbar).")
-        if len(pos) >= 3:
-            return pos[0], pos[1], pos[2]
-        return pos[0], pos[1]
+        z = pos[2] if len(pos) >= 3 else None
+        return (float(pos[0]), float(pos[1]), z)
 
     def jog(self, x=None, y=None, z=None, speed=80):
-        params = {"axes": []}
-        g = []
-        if x is not None:
-            params["axes"].append("x")
-        if y is not None:
-            params["axes"].append("y")
-        if z is not None:
-            params["axes"].append("z")
-        parts = [f"G91"]
+        parts = ["G91"]
         vals = []
         if x is not None:
             vals.append(f"X{x:+.2f}")
@@ -101,22 +102,11 @@ class MoonrakerConnection(PrinterConnection):
     def home_z(self):
         self.home("Z")
 
-    def probe_paper(self):
-        """Papier-Höhe an aktueller XY-Position messen (Klipper-Bett-Leveling).
-        Versucht bekannte Makros, liefert sonst None."""
-        candidates = ["CALIBRATE", "BED_MESH_CALIBRATE", "PROBE_CALIBRATE", "TESTZ Z=0"]
-        for macro in candidates:
-            try:
-                self._request("POST", "/printer/gcode/script", {"script": macro}, headers=self._headers())
-                return macro
-            except PrinterConnectionError:
-                continue
-        return None
-
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
         """G-Code hochladen und Druck sofort starten."""
         import io
         import uuid
+        filename = sanitize_filename(filename)
         boundary = uuid.uuid4().hex
         body = io.BytesIO()
         body.write(f"--{boundary}\r\n".encode())
@@ -131,7 +121,7 @@ class MoonrakerConnection(PrinterConnection):
         if self.api_key:
             req.add_header("X-Api-Key", self.api_key)
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self.upload_timeout) as resp:
                 resp.read()
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
@@ -168,18 +158,20 @@ class OctoPrintConnection(PrinterConnection):
         return {"X-Api-Key": self.api_key}
 
     def get_position(self):
-        """Position über /api/printer/printhead (Axis-Format oder direkt)."""
+        """Position über /api/printer/printhead; liefert IMMER (x, y, z),
+        z = None, wenn die Z-Höhe unbekannt ist."""
         res = self._request("GET", "/api/printer/printhead?history=false", headers=self._headers())
-
         def axis_val(v):
             if isinstance(v, dict):
                 return v.get("current") or v.get("offset") or 0.0
             return v or 0.0
-
-        x, y = axis_val(res.get("x")), axis_val(res.get("y"))
+        x, y, z = axis_val(res.get("x")), axis_val(res.get("y")), res.get("z")
         if x is None or y is None:
             raise PrinterConnectionError("Position konnte nicht gelesen werden (printhead nicht verfügbar).")
-        return (float(x), float(y))
+        z_val = None
+        if z is not None:
+            z_val = float(axis_val(z))
+        return (float(x), float(y), z_val)
 
     def jog(self, x=None, y=None, z=None, speed=80):
         cmds = []
@@ -202,19 +194,21 @@ class OctoPrintConnection(PrinterConnection):
                       headers=self._headers())
 
     def home(self, axes="XY"):
-        self._request("POST", "/api/printer/command", {"commands": [f"G28"]}, headers=self._headers())
+        """Homed NUR die angegebenen Achsen (nicht immer alles)."""
+        cmd = "G28 " + " ".join(a.upper() for a in axes)
+        self._request("POST", "/api/printer/command", {"commands": [cmd]}, headers=self._headers())
 
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
         import io
         import uuid
+        filename = sanitize_filename(filename)
         boundary = uuid.uuid4().hex
         body = io.BytesIO()
         body.write(f"--{boundary}\r\n".encode())
         body.write(f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'.encode())
         body.write(b"Content-Type: application/octet-stream\r\n\r\n")
         body.write(gcode_text.encode())
-        body.write(f"\r\n--{boundary}\r\n".encode())
-        body.write(f'Content-Disposition: form-data; name="select"\r\n\r\ntrue\r\n'.encode())
+        body.write(f'\r\n--{boundary}\r\nContent-Disposition: form-data; name="select"\r\n\r\ntrue\r\n'.encode())
         body.write(f"--{boundary}\r\n".encode())
         body.write(f'Content-Disposition: form-data; name="print"\r\n\r\ntrue\r\n'.encode())
         body.write(f"--{boundary}--\r\n".encode())
@@ -222,10 +216,14 @@ class OctoPrintConnection(PrinterConnection):
         req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
         req.add_header("X-Api-Key", self.api_key)
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self.upload_timeout) as resp:
                 resp.read()
         except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
             raise PrinterConnectionError(f"Upload fehlgeschlagen: {e}") from e
+
+    def is_printing(self):
+        res = self._request("GET", "/api/job", headers=self._headers())
+        return res.get("state") in ("printing", "pausing", "paused")
 
 
 def create_connection(kind, host, api_key=""):
