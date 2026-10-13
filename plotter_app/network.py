@@ -32,6 +32,20 @@ class PrinterConnection:
     def _url(self, path):
         return f"{self.host}{path}"
 
+    def plot_groups(self, groups, callback=None):
+        """Plot per Einzelbefehlen (synchron): eine Befehls-Gruppe pro Pfad.
+        Reihenfolge bleibt garantiert; beim ersten Fehler wird gestoppt."""
+        try:
+            for g in groups:
+                self.send_script("\n".join(g))
+            if callback:
+                callback(True, None)
+        except PrinterConnectionError as e:
+            if callback:
+                callback(None, str(e))
+            else:
+                raise
+
     def _request(self, method, path, data=None, headers=None):
         url = self._url(path)
         body = json.dumps(data).encode() if data is not None else None
@@ -145,6 +159,10 @@ class MoonrakerConnection(PrinterConnection):
                 last_err = e
         raise PrinterConnectionError(f"Druckstart fehlgeschlagen: {last_err}")
 
+    def send_script(self, script):
+        """Mehrere G-Code-Zeilen als ein Script live ausfuehren (kein Upload/Druck)."""
+        self._request("POST", "/printer/gcode/script", {"script": script}, headers=self._headers())
+
     def emergency_stop(self):
         """Sofort-Notaus (direkt, nicht über die G-Code-Warteschlange)."""
         self._request("POST", "/printer/emergency_stop", headers=self._headers())
@@ -216,6 +234,11 @@ class OctoPrintConnection(PrinterConnection):
         """Homed NUR die angegebenen Achsen (nicht immer alles)."""
         cmd = "G28 " + " ".join(a.upper() for a in axes)
         self._request("POST", "/api/printer/command", {"commands": [cmd]}, headers=self._headers())
+
+    def send_script(self, script):
+        """Mehrere G-Code-Zeilen live ausfuehren (kein Upload/Druck)."""
+        self._request("POST", "/api/printer/command", {"commands": script.split("\n")},
+                      headers=self._headers())
 
     def upload_and_start(self, gcode_text, filename="plot_job.gcode"):
         import io

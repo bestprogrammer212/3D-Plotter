@@ -8,7 +8,7 @@ from datetime import datetime
 
 from . import settings, tools
 from .calibration import Calibration
-from .gcode import export_gcode, save_gcode
+from .gcode import plot_command_groups, save_gcode
 from .network import PrinterConnectionError
 from .queue import QueuedConnection
 from .pen import PenSettings
@@ -1019,17 +1019,17 @@ class PlotterWindow(QtWidgets.QMainWindow):
         if btn != QtWidgets.QMessageBox.Yes:
             return
         paths = tools.optimize_paths(self.paths) if self.optimize_check.isChecked() else self.paths
-        gcode = export_gcode(paths, self.calibration, self.pen, header_comment="IP Plot Job")
-        filename = f"plot_{datetime.now():%Y%m%d_%H%M%S}.gcode"
+        groups = plot_command_groups(paths, self.calibration, self.pen)
 
         def cb(ok, err):
             def apply():
                 if err:
                     QtWidgets.QMessageBox.critical(self, "Netzwerkfehler", err)
                 else:
-                    self.statusBar().showMessage("Plot gestartet", 5000)
+                    self.statusBar().showMessage("Plot beendet", 5000)
             on_main_thread(apply)
-        self.connection.upload_and_start(gcode, filename=filename, callback=cb)
+        self.connection.plot_groups(groups, callback=cb)
+        self.statusBar().showMessage("Plot läuft (Befehle werden live gesendet) …", 0)
 
     def _validate_for_export(self):
         if not self.paths:

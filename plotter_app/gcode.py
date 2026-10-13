@@ -14,6 +14,43 @@ def _pen_target(calibration, pen, px, py):
     return (mx - pen.pen_offset_x, my - pen.pen_offset_y)
 
 
+def _draw_groups(paths, calibration: Calibration, pen: PenSettings):
+    """Eine Befehls-Gruppe pro Pfad: Stift hoch -> Anfahren -> runter -> zeichnen."""
+    groups = []
+    for path in paths:
+        if len(path) < 2:
+            continue
+        # Verfahren zwischen Pfaden IMMER mit vollem pen_up_z (kein 1-mm-Hub,
+        # der ueber unebenes Papier schleifen wuerde).
+        cmds = list(pen.up_gcode())
+        sx, sy = _pen_target(calibration, pen, path[0][0], path[0][1])
+        cmds.append(f"G0 X{sx:.2f} Y{sy:.2f} F{pen.travel_speed * 60:.0f}")
+        cmds.extend(pen.down_gcode())
+        for (px, py) in path[1:]:
+            mx, my = _pen_target(calibration, pen, px, py)
+            cmds.append(f"G1 X{mx:.2f} Y{my:.2f} F{pen.draw_speed * 60:.0f}")
+        groups.append(cmds)
+    return groups
+
+
+def plot_command_groups(paths, calibration: Calibration, pen: PenSettings):
+    """Befehls-Gruppen fuer das LIVE-Plotten (Senden per Einzelbefehl).
+
+    Kein G-Code-Upload, kein Druckstart: die Gruppen werden einzeln als
+    Script an den Drucker geschickt. Sicher fuer den Stift:
+    - es wird NUR X/Y gehomed (G28 X Y) – Z-Homen wuerde den Stift
+      gegen das Bett druecken, wenn er niedriger als die Nozzle sitzt
+    - das ALLERERSTE Kommando hebt den Stift auf pen_up_z, bevor
+      irgendeine Fahrt stattfindet
+    """
+    head = ["G90", "G21", "G28 X Y", "M107"]
+    head.extend(pen.up_gcode())
+    groups = [head]
+    groups.extend(_draw_groups(paths, calibration, pen))
+    groups.append(pen.up_gcode() + ["G0 X0 Y0", "M84"])
+    return groups
+
+
 def export_gcode(paths, calibration: Calibration, pen: PenSettings,
                  header_comment="Plotter Job", home_all=True):
     """paths: Liste von Polylines [(px, py), ...] in Papier-Einheiten 0..1."""
@@ -31,18 +68,8 @@ def export_gcode(paths, calibration: Calibration, pen: PenSettings,
     else:
         lines.append("G28 X Y ; home nur X/Y (Z unberuehrt, z. B. wenn Stift unter Nozzle sitzt)")
     lines.append("M107 ; fans off")
-    for path in paths:
-        if len(path) < 2:
-            continue
-        # Verfahren zwischen Pfaden IMMER mit vollem pen_up_z (kein 1-mm-Hub,
-        # der ueber unebenes Papier schleifen wuerde).
-        lines.extend(pen.up_gcode())
-        sx, sy = _pen_target(calibration, pen, path[0][0], path[0][1])
-        lines.append(f"G0 X{sx:.2f} Y{sy:.2f} F{pen.travel_speed * 60:.0f}")
-        lines.extend(pen.down_gcode())
-        for (px, py) in path[1:]:
-            mx, my = _pen_target(calibration, pen, px, py)
-            lines.append(f"G1 X{mx:.2f} Y{my:.2f} F{pen.draw_speed * 60:.0f}")
+    for group in _draw_groups(paths, calibration, pen):
+        lines.extend(group)
     lines.extend(pen.up_gcode())
     lines.append("G0 X0 Y0 ; Parkposition")
     lines.append("; done")
