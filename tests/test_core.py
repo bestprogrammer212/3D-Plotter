@@ -138,6 +138,85 @@ class TestGcode(unittest.TestCase):
         self.assertIn("#ff0000", colors)
         self.assertIn("#0000ff", colors)
 
+    def test_smooth_curve_rounds_corners(self):
+        """Chaikin rundet Ecken, Form/Polygon bleibt geschlossen."""
+        from plotter_app.tools import smooth_curve, _point_in_poly
+        sq = [(0.1, 0.1), (0.5, 0.1), (0.5, 0.5), (0.1, 0.5), (0.1, 0.1)]
+        sm = smooth_curve(sq, iterations=3)
+        self.assertEqual(sm[0], sm[-1])
+        self.assertGreater(len(sm), len(sq))
+        # Rundung: die scharfe Ecke (0.5,0.5) ist nicht mehr punktgenau enthalten
+        self.assertNotIn((0.5, 0.5), sm)
+        # Flaeche bleibt ungefaehr erhalten
+        from plotter_app.tools import _contour_area
+        self.assertAlmostEqual(_contour_area(sm), _contour_area(sq), delta=0.04)
+
+    def test_infill_modes(self):
+        """Linien-/Kreuz-/Zickzack-Fuellung liegen im Polygon."""
+        from plotter_app.tools import circle, infill_lines, infill_cross, infill_zigzag, _point_in_poly
+        circ = circle(0.5, 0.5, 0.3, steps=48)
+        lines = infill_lines(circ, spacing=0.05)
+        cross = infill_cross(circ, spacing=0.05)
+        zz = infill_zigzag(circ, spacing=0.05)
+        self.assertGreater(len(lines), 4)
+        self.assertEqual(len(cross), 2 * len(lines))
+        self.assertEqual(len(zz), 1)  # eine Serpentine
+        for segs in (lines, cross):
+            for s in segs:
+                mid = ((s[0][0] + s[1][0]) / 2, (s[0][1] + s[1][1]) / 2)
+                self.assertTrue(_point_in_poly(mid, circ))
+        # Zickzack: alle Punkte im Kreis oder am Rand (kleine Toleranz)
+        for p in zz[0]:
+            inside = _point_in_poly(p, circ)
+            on_edge = min((px - p[0]) ** 2 + (py - p[1]) ** 2 for px, py in circ) < 4e-4
+            cx, cy = 0.5, 0.5
+            within_r = (p[0] - cx) ** 2 + (p[1] - cy) ** 2 <= 0.3 ** 2 + 1e-6
+            self.assertTrue(inside or on_edge or within_r)
+
+    def test_trace_image_colored_smooth_and_fill(self):
+        """Tracer liefert geglaettete Konturen + Fuellung je Farbe."""
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            self.skipTest("Pillow nicht installiert")
+        img = Image.new("RGB", (100, 100), "white")
+        d = ImageDraw.Draw(img)
+        d.ellipse((20, 30, 80, 70), fill="red")
+        d.rectangle((10, 10, 15, 90), fill="blue")
+        import tempfile, os
+        f = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        img.save(f.name)
+        self.addCleanup(os.unlink, f.name)
+        from plotter_app.tools import trace_image_colored
+        paths, colors = trace_image_colored(f.name, resolution=64, fill_mode="cross",
+                                            fill_spacing=0.05)
+        n_contour = sum(1 for p in paths if len(p) > 10)
+        self.assertGreaterEqual(n_contour, 2)         # die 2 Konturen
+        self.assertGreater(len(paths), 2)             # + Fuell-Linien
+        self.assertIn("#ff0000", colors)
+        self.assertIn("#0000ff", colors)
+
+    def test_selection_geometry_helpers(self):
+        """Punkt-Segment-Abstand und Lasso-Kreuzung fuer die Auswahl."""
+        from plotter_app.geometry import seg_dist_sq, segs_intersect, point_in_poly
+        _seg_dist_sq, _segs_intersect = seg_dist_sq, segs_intersect
+        # zusaetzlich: Polygon-Test
+        sq = [(0, 0), (1, 0), (1, 1), (0, 1)]
+        self.assertTrue(point_in_poly((0.5, 0.5), sq))
+        self.assertFalse(point_in_poly((1.5, 0.5), sq))
+        # Punkt mitten auf einer Linie: Abstand 0 trotz keiner Eckpunkt-Naehe
+        self.assertAlmostEqual(
+            _seg_dist_sq((0.5, 0.0), (0.0, 0.0), (1.0, 0.0)), 0.0, places=9)
+        # Punkt neben der Linie
+        self.assertAlmostEqual(
+            _seg_dist_sq((0.5, 0.03), (0.0, 0.0), (1.0, 0.0)), 0.0009, places=9)
+        # ausserhalb des Segments: Abstand zum Endpunkt
+        self.assertAlmostEqual(
+            _seg_dist_sq((1.2, 0.0), (0.0, 0.0), (1.0, 0.0)), 0.04, places=9)
+        # Kreuzungen
+        self.assertTrue(_segs_intersect((0, 0), (1, 1), (0, 1), (1, 0)))
+        self.assertFalse(_segs_intersect((0, 0), (0, 1), (1, 0), (1, 1)))
+
     def test_plot_command_groups_color_pause(self):
         """Bei Farbwechsel gibt es einen ('pause', farbe)-Marker VOR der neuen Farbe."""
         cal = Calibration()

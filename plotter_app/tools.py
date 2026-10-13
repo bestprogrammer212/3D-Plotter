@@ -78,6 +78,137 @@ def polyline(points):
     return [tuple(p) for p in points]
 
 
+def smooth_curve(points, iterations=3, closed=True):
+    """Chaikin-Eckenrunder: macht kantige Konturen zu weichen Kurven.
+
+    Jede Iteration ersetzt Segmente durch zwei neue Punkte bei 25 %/75 % –
+    Ecken werden dadurch kurvig gerundet, ohne die Form zu verzerren.
+    """
+    pts = list(points)
+    if len(pts) < 3:
+        return pts
+    for _ in range(iterations):
+        if closed and pts[0] == pts[-1]:
+            ring = pts[:-1]
+            if len(ring) < 3:
+                return pts
+            new = []
+            n = len(ring)
+            for i in range(n):
+                a = ring[i]
+                b = ring[(i + 1) % n]
+                new.append((0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]))
+                new.append((0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]))
+            pts = new + [new[0]]
+        else:
+            new = [pts[0]]
+            for i in range(len(pts) - 1):
+                a, b = pts[i], pts[i + 1]
+                new.append((0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]))
+                new.append((0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]))
+            new.append(pts[-1])
+            pts = new
+    return pts
+
+
+def _poly_bbox(pts):
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _point_in_poly(pt, poly):
+    x, y = pt
+    inside = False
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        if (y1 > y) != (y2 > y):
+            xin = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if xin > x:
+                inside = not inside
+    return inside
+
+
+def infill_lines(polygon, spacing=0.05, angle=0.0, bbox_clip=None):
+    """Fuell-Linien (Hatching) fuer ein geschlossenes Polygon.
+
+    angle=0: horizontale Linien; andere Winkel in Radiant drehen das Raster.
+    Liefert Pfad-Segmente [(x1,y1),(x2,y2)], geschnitten mit dem Polygon.
+    """
+    if len(polygon) < 3:
+        return []
+    ring = polygon[:-1] if polygon[0] == polygon[-1] else polygon
+    x0, y0, x1, y1 = _poly_bbox(ring)
+    w = x1 - x0
+    h = y1 - y0
+    if w <= 0 or h <= 0:
+        return []
+    ca, sa = math.cos(angle), math.sin(angle)
+    # Raster im gedrehten Raum erzeugen, dann zurueckdrehen
+    diag = math.hypot(w, h)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    segs = []
+    d = -diag / 2
+    while d <= diag / 2:
+        # Linie im gedrehten Raum: von -diag/2..diag/2 entlang, Offset d
+        ax, ay = -diag / 2, d
+        bx, by = diag / 2, d
+        # zurueck ins Weltkoordinaten-System
+        pax = cx + ax * ca - ay * sa
+        pay = cy + ax * sa + ay * ca
+        pbx = cx + bx * ca - by * sa
+        pby = cy + bx * sa + by * ca
+        # Schnittpunkte der Linie mit allen Polygonkanten sammeln
+        ts = []
+        n = len(ring)
+        for i in range(n):
+            qx1, qy1 = ring[i]
+            qx2, qy2 = ring[(i + 1) % n]
+            dx, dy = qx2 - qx1, qy2 - qy1
+            den = (pbx - pax) * dy - (pby - pay) * dx
+            if abs(den) < 1e-12:
+                continue
+            t = ((qx1 - pax) * dy - (qy1 - pay) * dx) / den
+            u = ((qx1 - pax) * (pby - pay) - (qy1 - pay) * (pbx - pax)) / den
+            if -1e-9 <= t <= 1 + 1e-9 and -1e-9 <= u <= 1 + 1e-9:
+                ts.append(t)
+        if len(ts) >= 2:
+            ts.sort()
+            for k in range(0, len(ts) - 1, 2):
+                a = (pax + (pbx - pax) * ts[k], pay + (pby - pay) * ts[k])
+                b = (pax + (pbx - pax) * ts[k + 1], pay + (pby - pay) * ts[k + 1])
+                if math.hypot(b[0] - a[0], b[1] - a[1]) > 1e-4:
+                    segs.append([a, b])
+        d += spacing
+    return segs
+
+
+def infill_cross(polygon, spacing=0.05):
+    """Kreuz-Fuellung: horizontale + vertikale Linien (Kreuz-Infill)."""
+    segs = infill_lines(polygon, spacing, 0.0)
+    segs += infill_lines(polygon, spacing, math.pi / 2)
+    return segs
+
+
+def infill_zigzag(polygon, spacing=0.05):
+    """Zickzack-Fuellung: horizontale Linien, verbunden zu einer Serpentine."""
+    rows = infill_lines(polygon, spacing, 0.0)
+    if not rows:
+        return []
+    rows.sort(key=lambda s: s[0][1])
+    path = []
+    for i, seg in enumerate(rows):
+        if i % 2 == 1:
+            seg = [seg[1], seg[0]]
+        if path and path[-1] != seg[0]:
+            # Verbindungsstueck anfreihen (Stift bleibt unten beim Gravieren)
+            path.append(seg[0])
+        path.extend(seg)
+    return [path]
+
+
 def simplify(points, tolerance=0.002):
     """Douglas-Peucker: reduziert Punkte, ohne die Form merkbar zu ändern."""
     if len(points) < 3:
@@ -353,7 +484,8 @@ def _contour_area(pts):
 
 
 def trace_image_colored(filename, resolution=96, max_colors=6,
-                        paper_w=1.0, paper_h=1.0, min_area=0.0004):
+                        paper_w=1.0, paper_h=1.0, min_area=0.0004,
+                        fill_mode=None, fill_spacing=0.05):
     """Farbiger Bild-Tracer mit echter KONTUR-Verfolgung.
 
     RGB-Quantisierung auf wenige Farben; je Farbe werden REGIONEN als
@@ -361,6 +493,9 @@ def trace_image_colored(filename, resolution=96, max_colors=6,
     Seltene Farben (Rand-Mischpixel) werden auf die aehnlichste Hauptfarbe
     gemappt; kleine Fragmente werden verworfen -> saubere Vektor-Konturen.
     Liefert (paths, colors) mit '#rrggbb' je Pfad. Weiss bleibt frei.
+
+    fill_mode: None = nur Kontur; 'lines'/'cross'/'zigzag' fuegt zusaetzlich
+    eine Fuellung/Gravur innerhalb der Kontur hinzu (gleiche Farbe).
     """
     try:
         from PIL import Image
@@ -426,8 +561,24 @@ def trace_image_colored(filename, resolution=96, max_colors=6,
             if len(c) >= 4 and _contour_area(c) >= min_area:
                 simp = simplify(c, 0.003)
                 if len(simp) >= 4:
+                    # kurvig glaetten: Chaikin rundet die Pixel-Kanten
+                    simp = smooth_curve(simp, iterations=3)
                     paths.append(simp)
                     colors.append(hexcol)
                     kept += 1
+                    # Fuellung/Gravur innerhalb der Kontur (gleiche Farbe)
+                    if fill_mode:
+                        ring = simp[:-1] if simp[0] == simp[-1] else simp
+                        if len(ring) >= 3 and _contour_area(ring) >= 4 * min_area:
+                            if fill_mode == "cross":
+                                fill = infill_cross(ring, fill_spacing)
+                            elif fill_mode == "zigzag":
+                                fill = infill_zigzag(ring, fill_spacing)
+                            else:
+                                fill = infill_lines(ring, fill_spacing, 0.0)
+                            for f in fill:
+                                if len(f) >= 2:
+                                    paths.append(f)
+                                    colors.append(hexcol)
         done.add(target)
     return paths, colors

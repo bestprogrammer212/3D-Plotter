@@ -9,6 +9,8 @@ from datetime import datetime
 from . import settings, tools
 from .calibration import Calibration
 from .gcode import plot_command_groups, save_gcode
+from .geometry import segs_intersect as _segs_intersect
+from .geometry import seg_dist_sq as _seg_dist_sq
 from .network import PrinterConnectionError
 from .queue import QueuedConnection
 from .pen import PenSettings
@@ -179,6 +181,13 @@ class DesignCanvas(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self._drag = None   # (pfad-indizes, start-paper-x, start-paper-y, backups)
         self._lasso = None  # aktuelle Lasso-Punkte (Bildschirm)
+        self._hover = None  # Pfad-Index unterm Mauszeiger
+        self.setMouseTracking(True)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+    def _selection_changed(self):
+        if hasattr(self.app, "_refresh_sel_label"):
+            self.app._refresh_sel_label()
 
     def _paper_pos(self, e):
         """Maus-Punkt -> Papier-Koordinaten (0..1); None wenn ausserhalb."""
@@ -221,16 +230,24 @@ class DesignCanvas(QtWidgets.QWidget):
             return (x, y)
         return None
 
-    def _hit_path(self, pt):
-        """Index des Pfades unter dem Punkt (naechster Punkt < 0.02 Abstand)."""
+    def _hit_path(self, pt, tol=0.012):
+        """Index des Pfades unter dem Punkt – praezise:
+        Abstand zu jedem SEGMENT (nicht nur Eckpunkte), zudem Fuellung
+        (Punkt-im-Polygon) fuer geschlossene Formen."""
+        best_idx, best_d = None, tol * tol
         for idx in range(len(self.app.paths) - 1, -1, -1):
-            for (px, py) in self.app.paths[idx]:
-                if (px - pt[0]) ** 2 + (py - pt[1]) ** 2 < 0.02 ** 2:
-                    return idx
-        # Flaeche: Punkt im Inneren? Polygon-Test gegen die Pfad-Huelle
+            path = self.app.paths[idx]
+            n = len(path)
+            for i in range(n - 1):
+                d2 = _seg_dist_sq(pt, path[i], path[i + 1])
+                if d2 < best_d:
+                    best_d, best_idx = d2, idx
+        if best_idx is not None:
+            return best_idx
+        # Flaeche: Punkt im Inneren einer geschlossenen Form? (Gruppe treffen)
         for idx in range(len(self.app.paths) - 1, -1, -1):
             poly = self.app.paths[idx]
-            if _point_in_polygon(pt, poly):
+            if len(poly) >= 3 and poly[0] == poly[-1] and _point_in_polygon(pt, poly):
                 return idx
         return None
 
@@ -291,9 +308,41 @@ class DesignCanvas(QtWidgets.QWidget):
         if not self._lasso or len(self._lasso) < 3:
             return
         poly = self._lasso
+        # Pfad gilt als getroffen, wenn IRGENDEIN Segment das Lasso kreuzt
+        # oder ein Punkt drin liegt (auch objekte ohne Punkte im Lasso werden erfasst)
+        def crosses(poly, path):
+            if any(_point_in_polygon(p, poly) for p in path):
+                return True
+            n = len(poly)
+            for i in range(n):
+                a1, a2 = poly[i], poly[(i + 1) % n]
+                for j in range(len(path) - 1):
+                    b1, b2 = path[j], path[j + 1]
+                    if _segs_intersect(a1, a2, b1, b2):
+                        return True
+            return False
         self.app.selected = {
             i for i, path in enumerate(self.app.paths)
-            if any(_point_in_polygon(p, poly) for p in path)}
+            if crosses(poly, path)}
+
+    def keyPressEvent(self, e):
+        """Tastatur: Entf = Auswahl loeschen, Esc = Auswahl aufheben,
+        Strg+A = alles auswaehlen."""
+        if e.key() in (QtCore.Qt.Key_Delete, QtCore.Qt.Key_Backspace):
+            if self.app.selected:
+                self.app._delete_selected()
+            return
+        if e.key() == QtCore.Qt.Key_Escape:
+            self.app.selected.clear()
+            self._selection_changed()
+            self.update()
+            return
+        if e.key() == QtCore.Qt.Key_A and e.modifiers() & QtCore.Qt.ControlModifier:
+            self.app.selected = set(range(len(self.app.paths)))
+            self._selection_changed()
+            self.update()
+            return
+        super().keyPressEvent(e)
 
     def mouseReleaseEvent(self, _e):
         if self._lasso is not None:
@@ -301,6 +350,7 @@ class DesignCanvas(QtWidgets.QWidget):
             self._lasso = None
         self._drag = None
         self.setCursor(QtCore.Qt.ArrowCursor)
+        self._selection_changed()
         self.update()
 
     def paintEvent(self, _event):
@@ -350,6 +400,8 @@ class DesignCanvas(QtWidgets.QWidget):
                 col = QtGui.QColor(colors[pi] or "#1565c0")
                 if pi in self.app.selected:
                     p.setPen(QtGui.QPen(col, 3))
+                elif pi == self._hover:
+                    p.setPen(QtGui.QPen(col.lighter(160), 3))
                 else:
                     p.setPen(QtGui.QPen(col, 2))
                 poly2 = QtGui.QPolygonF()
@@ -368,7 +420,7 @@ class DesignCanvas(QtWidgets.QWidget):
                 if len(path) < 2:
                     continue
                 col = QtGui.QColor(colors[pi] or "#1565c0")
-                pen_w = 2 if pi in self.app.selected else 1
+                pen_w = 3 if (pi in self.app.selected or pi == self._hover) else 1
                 p.setPen(QtGui.QPen(col, pen_w, QtCore.Qt.DashLine))
                 poly2 = QtGui.QPolygonF()
                 for (px, py) in path:
@@ -1048,16 +1100,19 @@ class PlotterWindow(QtWidgets.QMainWindow):
         sel = QtWidgets.QGroupBox("Auswahl & Farbe")
         self.lasso_check = QtWidgets.QCheckBox("Lasso-Modus (Fläche aufziehen)")
         self.lasso_check.toggled.connect(self._toggle_lasso)
-        sel_btn = QtWidgets.QPushButton("Auswahl löschen")
-        sel_btn.clicked.connect(lambda: (self.selected.clear(), self.paper_canvas.update()))
-        del_btn = QtWidgets.QPushButton("Auswahl löschen (Pfade)")
+        self.sel_lbl = QtWidgets.QLabel("0 Pfade ausgewählt")
+        sel_btn = QtWidgets.QPushButton("Auswahl aufheben (Esc)")
+        sel_btn.clicked.connect(lambda: (self.selected.clear(), self.paper_canvas.update(), self._refresh_sel_label()))
+        all_btn = QtWidgets.QPushButton("Alles auswählen (Strg+A)")
+        all_btn.clicked.connect(lambda: (setattr(self, 'selected', set(range(len(self.paths)))), self.paper_canvas.update(), self._refresh_sel_label()))
+        del_btn = QtWidgets.QPushButton("Auswahl löschen – Entf")
         del_btn.clicked.connect(self._delete_selected)
         color_btn = QtWidgets.QPushButton("Farbe für Auswahl …")
         color_btn.clicked.connect(self._pick_color)
         self.color_lbl = QtWidgets.QLabel("Farbe: ")
         self._update_color_label()
         sl = QtWidgets.QVBoxLayout(sel)
-        for w in (self.lasso_check, sel_btn, del_btn, color_btn, self.color_lbl):
+        for w in (self.lasso_check, self.sel_lbl, sel_btn, all_btn, del_btn, color_btn, self.color_lbl):
             sl.addWidget(w)
         panel.addWidget(sel)
 
@@ -1089,6 +1144,14 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.design_canvas.setCursor(
             QtCore.Qt.CrossCursor if checked else QtCore.Qt.ArrowCursor)
 
+    def _refresh_sel_label(self):
+        n = len(self.selected)
+        groups = len({self._group_of(i) for i in self.selected if self._group_of(i) is not None})
+        txt = f"{n} Pfade ausgewählt"
+        if groups:
+            txt += f" ({groups} Objekte)"
+        self.sel_lbl.setText(txt)
+
     def _update_color_label(self):
         self.color_lbl.setText(f"Farbe: {self.design_color}")
         self.color_lbl.setStyleSheet(f"color: {self.design_color};")
@@ -1107,6 +1170,7 @@ class PlotterWindow(QtWidgets.QMainWindow):
         for i in sorted(self.selected, reverse=True):
             self._remove_path(i)
         self.selected.clear()
+        self._refresh_sel_label()
         self.paper_canvas.update()
 
     def _add_shape(self):
@@ -1160,11 +1224,36 @@ class PlotterWindow(QtWidgets.QMainWindow):
             self, "Bild öffnen", "", "Bilder (*.png *.jpg *.jpeg *.bmp)")
         if not path:
             return
-        farbig = QtWidgets.QMessageBox.question(
-            self, "Bild tracer", "Farbig traceren (eine Farbe je Bild-Farbe,\nmit Farbwechsel-Pausen beim Plotten)?")
+        dlg = QtWidgets.QDialog(self)
+        dlg.setWindowTitle("Bild tracer")
+        form = QtWidgets.QVBoxLayout(dlg)
+        farbig = QtWidgets.QCheckBox("Farbig traceren (eine Farbe je Bild-Farbe, mit Farbwechsel-Pausen)")
+        farbig.setChecked(True)
+        form.addWidget(farbig)
+        box = QtWidgets.QGroupBox("Füllung / Gravur (nur farbig)")
+        bf = QtWidgets.QGridLayout(box)
+        fill_combo = QtWidgets.QComboBox()
+        fill_combo.addItems(["Nur Kontur", "Linien-Füllung", "Kreuz-Füllung", "Zickzack (ein Linig)"])
+        bf.addWidget(QtWidgets.QLabel("Modus:"), 0, 0)
+        bf.addWidget(fill_combo, 0, 1)
+        spacing_spin = self._dspin(0.01, 0.3, 0.05, 0.01)
+        bf.addWidget(QtWidgets.QLabel("Linien-Abstand:"), 1, 0)
+        bf.addWidget(spacing_spin, 1, 1)
+        form.addWidget(box)
+        btns = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        form.addWidget(btns)
+        if dlg.exec() != QtWidgets.QDialog.Accepted:
+            return
+        fill_modes = {0: None, 1: "lines", 2: "cross", 3: "zigzag"}
+        fill_mode = fill_modes[fill_combo.currentIndex()] if farbig.isChecked() else None
+        spacing = spacing_spin.value()
         try:
-            if farbig == QtWidgets.QMessageBox.Yes:
-                paths, colors = tools.trace_image_colored(path, resolution=128)
+            if farbig.isChecked():
+                paths, colors = tools.trace_image_colored(
+                    path, resolution=128, fill_mode=fill_mode, fill_spacing=spacing)
                 if not paths:
                     QtWidgets.QMessageBox.warning(self, "Bild tracer", "Keine Farbbereiche gefunden.")
                     return

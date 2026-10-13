@@ -214,23 +214,31 @@ class QueuedConnection:
         state["advance"] = send_next
 
     def pause_plot(self):
-        """Manuelle Pause: keine weiteren Gruppen senden, bis resume_plot()."""
+        """SOFORT-Pause: laufende Bewegung anhalten (Klipper: PAUSE + Stift hoch,
+       _octoprint: aktuelles G-Code abbrechen) und keine weiteren Gruppen senden.
+        """
         st = getattr(self, "_plot_state", None)
         if st and not st["done"]:
             st["paused"] = True
-            try:
-                conn = self._get_conn()
-                conn.send_script("PAUSE")
-            except PrinterConnectionError:
-                pass
+        try:
+            conn = self._get_conn()
+            # Bewegung SOFORT anhalten + Stift anheben (beide APIs)
+            conn.send_script("PAUSE")
+        except PrinterConnectionError:
+            pass
+        try:
+            conn = self._get_conn()
+            conn.send_script("G91\nG1 Z5\nG90")
+        except PrinterConnectionError:
+            pass
 
     def resume_plot(self):
         """Pause/Farbwechsel bestaetigt: weiterplotten."""
         st = getattr(self, "_plot_state", None)
-        if st and st.get("paused"):
+        if st and st.get("paused") and not st["done"]:
             st["paused"] = False
             if st["i"] < len(st["items"]) and isinstance(st["items"][st["i"]], tuple):
-                st["i"] += 1  # Pause-Marker verwerfen
+                st["i"] += 1  # Farbwechsel-Marker verwerfen
             try:
                 conn = self._get_conn()
                 conn.send_script("RESUME")
@@ -238,18 +246,9 @@ class QueuedConnection:
                 pass
             st["advance"]()
 
-    def resume_plot(self):
-        """Farbwechsel bestaetigt: nach der Pause weiterplotten."""
-        st = getattr(self, "_plot_state", None)
-        if st and st.get("paused"):
-            st["paused"] = False
-            st["i"] += 1  # Pause-Marker verwerfen
-            st["advance"]()
-
     def stop_plot(self):
-        """Plot abbrechen: Stift hoch + Bewegung abbrechen (M112-classig sanft:
-        Klipper PAUSE/CANCEL via cancel_print, dann pen up)."""
-        st = self._plot_state
+        """Plot ABBRECHEN: Bewegung sofort stoppen, Stift hoch, alles verwerfen."""
+        st = getattr(self, "_plot_state", None)
         if st:
             st["stopped"] = True
             st["paused"] = False
@@ -260,7 +259,7 @@ class QueuedConnection:
             pass
         try:
             conn = self._get_conn()
-            conn.send_script("G91\nG1 Z5\nG90")
+            conn.send_script("G91\nG1 Z10\nG90")
         except PrinterConnectionError:
             pass
         self._queue = queue.Queue()  # wartende Befehle verwerfen
